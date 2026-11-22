@@ -210,16 +210,16 @@ function handlePitch(hz){
       if(seqMode){
         if(seqIndex<sequence.length-1){
           status.textContent="נכון! ✓ ממשיכים לתו הבא ברצף";
-          pendingAdvance=setTimeout(()=>{correctFlash=false;advanceSequence();},550);
+        correctFlash=false; advanceSequence();
         } else {
           correct++; seqDone++; save(); updateScore();
           status.textContent="כל הכבוד! רצף שלם ✓";
-          pendingAdvance=setTimeout(()=>{correctFlash=false;chooseNote(true);},900);
+        correctFlash=false; chooseNote(true);
         }
       } else {
         correct++; save(); updateScore();
         status.textContent="נכון! ✓";
-        pendingAdvance=setTimeout(()=>{correctFlash=false;chooseNote(true);},550);
+        correctFlash=false; chooseNote(true);
       }
     }
   } else {
