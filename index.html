@@ -67,7 +67,7 @@
     <button id="easier">קשה מדי · צעד אחורה</button>
     <button id="harder">קל מדי · צעד קדימה</button>
   </div>
-  <footer>הצליל מעובד בדפדפן בלבד. אין הקלטה או העלאה לרשת. ההתקדמות נשמרת במכשיר זה. גרסה 2.0.</footer>
+  <footer>הצליל מעובד בדפדפן בלבד. אין הקלטה או העלאה לרשת. ההתקדמות נשמרת במכשיר זה. גרסה 2.1.</footer>
 </main>
 <div id="visits"><img src="https://visitor-badge.laobi.icu/badge?page_id=miromiro1515.piano-trainer-web&left_text=%D7%91%D7%99%D7%A7%D7%95%D7%A8%D7%99%D7%9D" alt="" onerror="this.parentNode.style.display='none'"></div>
 <script>
@@ -190,7 +190,7 @@ function handlePitch(hz){
   if(transitioning) return;
   if(hz==null){
     stable=0; releaseFrames++;
-    if(releaseFrames>=2 && waitingForRelease){
+    if(releaseFrames>=3 && waitingForRelease){
       waitingForRelease=false;
       status.textContent=seqMode?`נגנו את התו ${noteName(target)}`:"נגנו את התו שעל החמשה";
     }
@@ -199,7 +199,7 @@ function handlePitch(hz){
   const exact=69+12*Math.log2(hz/440), played=Math.round(exact);
   heard.textContent=`נשמע: ${noteName(played)} · ${latinName(played)} · ${Math.round(hz)} Hz`;
   if(waitingForRelease){
-    if(played!==target){ releaseFrames++; if(releaseFrames>=2) waitingForRelease=false; }
+    if(played!==target){ releaseFrames++; if(releaseFrames>=3) waitingForRelease=false; }
     return;
   }
   releaseFrames=0;
@@ -270,16 +270,21 @@ async function startListening(){
     const src=audioCtx.createMediaStreamSource(micStream);
     analyser=audioCtx.createAnalyser(); analyser.fftSize=16384;
     src.connect(analyser);
-    buf=new Float32Array(8192);
+    buf=new Float32Array(4096);
     active=true;
     micBtn.textContent="עצירת מיקרופון"; micBtn.classList.add("on");
     status.textContent=seqMode?"נגנו את התווים שעל החמשה, אחד אחרי השני":"נגנו את התו שעל החמשה";
     waitingForRelease=false; stable=0;
+    // Faster recognition, same accuracy: poll every 80 ms and run YIN on the
+    // freshest 2400 samples (YIN reads its first ~2314), instead of every
+    // 150 ms over a window ending ~120 ms in the past. Still 3 consecutive
+    // matching frames and the same 0.38-semitone tolerance before a confirm,
+    // so the sustained-correct requirement drops ~450 ms to ~240 ms.
     timer=setInterval(()=>{
       if(!active) return;
       analyser.getFloatTimeDomainData(buf);
-      handlePitch(detectPitch(buf,audioCtx.sampleRate));
-    },150);
+      handlePitch(detectPitch(buf.subarray(buf.length-2400),audioCtx.sampleRate));
+    },80);
   }catch(e){
     stopListening();
     status.textContent="לא ניתן להפעיל מיקרופון. נסו שוב";
