@@ -14,17 +14,18 @@
     display: flex; justify-content: center;
   }
   main {
-    width: 100%; max-width: 560px; height: 100%;
+    width: 100%; max-width: 560px; min-height: 100%;
     display: flex; flex-direction: column;
     padding: calc(18px + env(safe-area-inset-top)) 20px calc(14px + env(safe-area-inset-bottom));
     text-align: center;
   }
+  main > * { flex-shrink:0; }
   h1 { font-size: 25px; margin: 4px 0 2px; font-weight: 600; }
   #visits { position: fixed; bottom: 8px; left: 8px; opacity: .75; z-index: 5; }
   #visits img { height: 20px; display: block; }
   #subtitle { font-size: 16px; margin: 3px 0; }
   #score { font-size: 15px; margin: 3px 0; }
-  #staffwrap { flex: 1; min-height: 140px; margin: 6px 0; }
+  #staffwrap { flex: 1; height: 240px; min-height: 200px; margin: 6px 0; }
   canvas { width: 100%; height: 100%; display: block; }
   #status { font-size: 19px; margin: 6px 0; min-height: 26px; }
   #heard { font-size: 16px; margin: 3px 0; min-height: 22px; color: rgb(60,80,105); }
@@ -38,6 +39,10 @@
   #mic.on { background: rgb(190,70,60); }
   .row { display: flex; gap: 8px; }
   .row button { flex: 1; }
+  select { width:100%; padding:10px; font:inherit; border:1px solid #b8c8de; border-radius:10px; background:white; color:inherit; }
+  #exercise { font-size:15px; line-height:1.5; margin:8px 0; }
+  #finger { font-size:21px; font-weight:600; color:#235fd2; }
+  #legend { font-size:13px; line-height:1.5; }
   footer { font-size: 12px; color: rgb(110,125,145); margin-top: 10px; }
 </style>
 </head>
@@ -46,17 +51,23 @@
   <h1 dir="ltr">Piano Notes Learning Free</h1>
   <div id="subtitle"></div>
   <div id="score"></div>
+  <label for="lesson">בחירת תרגיל, אפשר גם לדלג</label>
+  <select id="lesson"></select>
+  <div id="exercise"></div>
+  <div id="finger"></div>
+  <div id="legend">יד ימין: 1 אגודל · 2 מורה · 3 אמה · 4 קמיצה · 5 זרת<br>המספרים מתאימים לתרגיל ולמנח היד, לא לכל הופעה של אותו תו. המיקרופון בודק צליל, לא אצבעות.</div>
   <div id="staffwrap"><canvas id="staff"></canvas></div>
   <div id="status">לחצו על הפעלת המיקרופון כדי להתחיל</div>
   <div id="heard">נגנו תו אחד בכל פעם, בלי אקורד או דוושת השהיה</div>
+  <button id="demo">לפני שמנגנים: הדגמת התווים והאצבעות</button>
   <button id="mic">הפעלת מיקרופון</button>
   <button id="hint">רמז: שם התו</button>
   <button id="mode"></button>
   <div class="row">
-    <button id="harder">קשה מדי</button>
-    <button id="easier">קל מדי</button>
+    <button id="easier">קשה מדי · צעד אחורה</button>
+    <button id="harder">קל מדי · צעד קדימה</button>
   </div>
-  <footer>הצליל מעובד בדפדפן בלבד. אין הקלטה או העלאה לרשת. ההתקדמות נשמרת במכשיר זה.</footer>
+  <footer>הצליל מעובד בדפדפן בלבד. אין הקלטה או העלאה לרשת. ההתקדמות נשמרת במכשיר זה. גרסה 2.0.</footer>
 </main>
 <div id="visits"><img src="https://visitor-badge.laobi.icu/badge?page_id=miromiro1515.piano-trainer-web&left_text=%D7%91%D7%99%D7%A7%D7%95%D7%A8%D7%99%D7%9D" alt="" onerror="this.parentNode.style.display='none'"></div>
 <script>
@@ -64,32 +75,47 @@
 // ---- training model (ported from the native app) ----
 const NAMES=["דו","דו דיאז","רה","רה דיאז","מי","פה","פה דיאז","סול","סול דיאז","לה","לה דיאז","סי"];
 const LATIN=["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
-// L1: first octave naturals. L2: + sharps/flats. L3: + second octave.
-const LEVELS=[
-  [60,62,64,65,67,69,71],
-  [60,61,62,63,64,65,66,67,68,69,70,71],
-  [60,61,62,63,64,65,66,67,68,69,70,71,72,73,74,75,76,77,78,79,80,81,82,83]
+// Every finger belongs to this exercise's hand position or ordered scale.
+const LESSONS=[
+ {name:"1א · אוקטבה ראשונה: דו רה מי",notes:[60,62,64],fingers:[1,2,3],help:"הניחו אגודל ימין על דו האמצעי C4. מתרגלים רק שלושה תווים במנח קבוע."},
+ {name:"1ב · אוקטבה ראשונה: דו עד סול",notes:[60,62,64,65,67],fingers:[1,2,3,4,5],help:"מנח קבוע: אגודל על C4, זרת על G4. בלי מעבר אגודל."},
+ {name:"1ג · אוקטבה ראשונה: פה עד דו",notes:[65,67,69,71,72],fingers:[1,2,3,4,5],help:"הזיזו את היד: אגודל על F4, זרת על C5. זה מנח חדש, לכן המספרים השתנו."},
+ {name:"1ד · אוקטבה ראשונה: סולם מלא",notes:[60,62,64,65,67,69,71,72],fingers:[1,2,3,1,2,3,4,5],ordered:true,help:"דו C4 עד דו C5, בעלייה ובירידה לפי הסדר. בעלייה האגודל עובר מתחת אחרי מי; בירידה אצבע 3 עוברת מעל אחרי פה."},
+ {name:"2א · אוקטבה שנייה בלבד: דו רה מי",notes:[72,74,76],fingers:[1,2,3],help:"עוברים ליד ימין גבוהה יותר: אגודל על C5. רק שלושה תווים, בלי ערבוב האוקטבה הראשונה."},
+ {name:"2ב · אוקטבה שנייה: מוסיפים פה",notes:[72,74,76,77],fingers:[1,2,3,4],help:"אותו מנח, אגודל על C5. מוסיפים רק פה F5 באצבע 4 לשלושת התווים שכבר תרגלתם."},
+ {name:"2ג · אוקטבה שנייה: מוסיפים סול",notes:[72,74,76,77,79],fingers:[1,2,3,4,5],help:"מנח קבוע גבוה: אגודל על C5, זרת על G5. מתרגלים את הקריאה מעל החמשה לאט."},
+ {name:"2ד · מנח גבוה חדש: פה סול לה",notes:[77,79,81],fingers:[1,2,3],help:"הזיזו את היד: אגודל על F5. מתרגלים רק פה סול לה; המנח השתנה ולכן גם מספרי האצבעות."},
+ {name:"2ה · במנח פה: מוסיפים סי",notes:[77,79,81,83],fingers:[1,2,3,4],help:"אגודל על F5. מוסיפים רק סי B5 באצבע 4 לשלושת התווים של המנח החדש."},
+ {name:"2ו · במנח פה: מוסיפים דו",notes:[77,79,81,83,84],fingers:[1,2,3,4,5],help:"מנח חדש: אגודל על F5, זרת על C6. עדיין מתרגלים רק באוקטבה הגבוהה."},
+ {name:"2ז · אוקטבה שנייה בלבד: סולם מלא",notes:[72,74,76,77,79,81,83,84],fingers:[1,2,3,1,2,3,4,5],ordered:true,help:"דו C5 עד דו C6, לפי הסדר ובחזרה. אותו מעבר אגודל כמו בסולם הראשון, אוקטבה למעלה."},
+ {name:"3 · שילוב שתי אוקטבות, בלי סימני היתק",notes:[60,62,64,65,67,69,71,72,74,76,77,79,81,83,84],fingers:[1,2,3,1,2,3,4,1,2,3,1,2,3,4,5],ordered:true,help:"סולם C4 עד C6 ובחזרה. בדו האמצעי של התרגיל C5 משתמשים באגודל 1 כדי להמשיך, לא בזרת 5. אין קפיצות אקראיות."},
+ {name:"4א · דיאז: פה דיאז במנח קבוע",notes:[62,64,66,67,69],fingers:[1,2,3,4,5],help:"רק אחרי שתי האוקטבות: אגודל על D4, זרת על A4. אצבע 3 מנגנת פה דיאז, הקליד השחור שמימין לפה."},
+ {name:"4ב · במול: סי במול במנח קבוע",notes:[65,67,69,70,72],fingers:[1,2,3,4,5],flat:true,help:"אגודל על F4, זרת על C5. אצבע 4 מנגנת סי במול, הקליד השחור שמשמאל לסי. זה אותו קליד כמו לה דיאז, בשם שמתאים לתרגיל."}
 ];
-const LEVEL_DESC=["אוקטבה ראשונה · קלידים לבנים","אוקטבה ראשונה · כולל דיאז ובמול","שתי אוקטבות · כולל דיאז ובמול"];
+const LEVELS=LESSONS.map(l=>l.notes);
+const LEVEL_DESC=LESSONS.map(l=>l.name);
 
 const $=id=>document.getElementById(id);
 const subtitle=$("subtitle"), scoreEl=$("score"), status=$("status"), heard=$("heard");
 const micBtn=$("mic"), hintBtn=$("hint"), modeBtn=$("mode");
 const cv=$("staff");
 
-let level=clampI(+localStorage.getItem("pt_level")||0,0,LEVELS.length-1);
+// Existing totals, mode, and legacy level are retained. This revision starts at
+// three upper notes as requested; future visits restore the exact new lesson.
+let level=clampI(+(localStorage.getItem("pt_lesson_v2") ?? 4),0,LEVELS.length-1);
 let correct=+localStorage.getItem("pt_correct")||0;
 let seqDone=+localStorage.getItem("pt_seqDone")||0;
 let seqMode=localStorage.getItem("pt_seqMode")==="1";
 let target=60, stable=0, releaseFrames=0, waitingForRelease=false, transitioning=false;
 let sequence=[], seqIndex=0, correctFlash=false, active=false;
+let exerciseNotes=[], exerciseFingers=[], singleCursor=-1, pendingAdvance=null, demonstrating=false;
 
 function clampI(v,a,b){v=Math.round(isFinite(v)?v:a);return Math.max(a,Math.min(b,v));}
-function noteName(m){return NAMES[((m%12)+12)%12];}
-function latinName(m){return LATIN[m%12]+(Math.floor(m/12)-1);}
-function seqLength(){return 3+Math.min(level,3);}
+function noteName(m){if(LESSONS[level].flat && m%12===10)return "סי במול";return NAMES[((m%12)+12)%12];}
+function latinName(m){return (LESSONS[level].flat&&m%12===10?"Bb":LATIN[m%12])+(Math.floor(m/12)-1);}
+function seqLength(){return LESSONS[level].ordered?4:3;}
 function save(){
-  localStorage.setItem("pt_level",level);
+  localStorage.setItem("pt_lesson_v2",level);
   localStorage.setItem("pt_correct",correct);
   localStorage.setItem("pt_seqDone",seqDone);
   localStorage.setItem("pt_seqMode",seqMode?"1":"0");
@@ -97,6 +123,8 @@ function save(){
 function refreshModeLabels(){
   const base=seqMode?`יד ימין · מפתח סול · רצף של ${seqLength()} תווים`:"יד ימין · מפתח סול · תו אחד בכל פעם";
   subtitle.textContent=base+" · "+LEVEL_DESC[level];
+  $("lesson").value=String(level);
+  $("exercise").textContent=LESSONS[level].help+" אין עלייה אוטומטית: חוזרים כמה שרוצים ועוברים צעד רק כשנוח.";
   modeBtn.textContent=seqMode?"מעבר לתרגול תו בודד":"מעבר לתרגול רצף תווים";
 }
 function updateScore(){
@@ -104,41 +132,55 @@ function updateScore(){
     ?`רמה ${level+1} מתוך ${LEVELS.length} · ${seqDone} רצפים הושלמו`
     :`רמה ${level+1} מתוך ${LEVELS.length} · ${correct} תווים נכונים`;
 }
-function chooseNote(release=true){
-  if(seqMode){
-    const pool=LEVELS[level];
-    const seq=new Array(seqLength());
-    let prev=-1;
-    for(let i=0;i<seq.length;i++){
-      const opts=pool.filter(n=>n!==prev);
-      seq[i]=opts.length?opts[Math.floor(Math.random()*opts.length)]:pool[0];
-      prev=seq[i];
-    }
-    sequence=seq; seqIndex=0; target=sequence[0];
-  } else {
-    sequence=[]; seqIndex=0;
-    const opts=LEVELS[level].filter(n=>n!==target);
-    target=opts.length?opts[Math.floor(Math.random()*opts.length)]:LEVELS[level][0];
-  }
-  hintBtn.textContent="רמז: שם התו";
-  stable=0; releaseFrames=0; transitioning=false; waitingForRelease=release;
-  updateScore(); draw();
-  if(active) status.textContent=release
-    ?(seqMode?"שחררו את הקליד, ואז נגנו את התו הראשון ברצף":"שחררו את הקליד, ואז נגנו את התו הבא")
-    :(seqMode?"נגנו את התווים שעל החמשה, אחד אחרי השני":"נגנו את התו שעל החמשה");
+function buildExercise(){
+ const l=LESSONS[level];
+ if(l.ordered){
+   exerciseNotes=l.notes.concat(l.notes.slice(0,-1).reverse());
+   exerciseFingers=l.fingers.concat(l.fingers.slice(0,-1).reverse());
+ }else{exerciseNotes=l.notes;exerciseFingers=l.fingers;}
 }
+function fingerFor(m,index){
+ return LESSONS[level].ordered?exerciseFingers[index]:LESSONS[level].fingers[LESSONS[level].notes.indexOf(m)];
+}
+let sequenceFingers=[], targetFinger=1;
+function updateFinger(){ $("finger").textContent=`אצבע ${targetFinger} ביד ימין`; }
+function chooseNote(release=true){
+  clearTimeout(pendingAdvance); correctFlash=false;
+  buildExercise();
+  if(seqMode){
+    sequence=[]; sequenceFingers=[];
+    for(let i=0;i<seqLength();i++){
+      let idx;
+      if(LESSONS[level].ordered){ singleCursor=(singleCursor+1)%exerciseNotes.length;idx=singleCursor; }
+      else { const opts=exerciseNotes.map((_,j)=>j).filter(j=>exerciseNotes[j]!==sequence[i-1]);idx=opts[Math.floor(Math.random()*opts.length)]; }
+      sequence.push(exerciseNotes[idx]); sequenceFingers.push(fingerFor(exerciseNotes[idx],idx));
+    }
+    seqIndex=0;target=sequence[0];targetFinger=sequenceFingers[0];
+  }else{
+    sequence=[];seqIndex=0;
+    if(LESSONS[level].ordered)singleCursor=(singleCursor+1)%exerciseNotes.length;
+    else {const opts=exerciseNotes.map((_,j)=>j).filter(j=>exerciseNotes[j]!==target);singleCursor=opts[Math.floor(Math.random()*opts.length)];}
+    target=exerciseNotes[singleCursor];targetFinger=fingerFor(target,singleCursor);
+  }
+  updateFinger();hintBtn.textContent="רמז: שם התו";
+  stable=0;releaseFrames=0;transitioning=false;waitingForRelease=release;
+  updateScore();draw();
+  if(active) status.textContent=release?"שחררו את הקליד, ואז נגנו את התו המסומן":"נגנו את התו המסומן";
+  else status.textContent="אפשר לשמוע ולראות הדגמה, ואז להפעיל מיקרופון לתרגול";
+}
+
 function changeLevel(delta){
   const next=clampI(level+delta,0,LEVELS.length-1);
   if(next===level){ status.textContent=delta<0?"זו הרמה הבסיסית. אפשר להיעזר ברמז":"זו הרמה המלאה. ממשיכים לתרגל!"; return; }
-  level=next; save(); refreshModeLabels(); chooseNote(active);
-  if(!active) status.textContent=`רמה ${level+1}: ${LEVEL_DESC[level]}. הפעילו מיקרופון כדי לתרגל`;
+  level=next; singleCursor=-1; save(); refreshModeLabels(); chooseNote(active);
+  if(!active) status.textContent="התרגיל הוחלף. אפשר לראות הדגמה ואז לתרגל בקצב שלכם";
 }
 function toggleMode(){
-  seqMode=!seqMode; save(); refreshModeLabels(); chooseNote(active);
+  seqMode=!seqMode; singleCursor=-1; save(); refreshModeLabels(); chooseNote(active);
   if(!active) status.textContent=seqMode?"מצב רצף: נגנו את התווים אחד אחרי השני":"מצב תו בודד. הפעילו מיקרופון כדי לתרגל";
 }
 function advanceSequence(){
-  seqIndex++; target=sequence[seqIndex];
+  seqIndex++; target=sequence[seqIndex];targetFinger=sequenceFingers[seqIndex];updateFinger();
   hintBtn.textContent="רמז: שם התו";
   stable=0; releaseFrames=0; transitioning=false; waitingForRelease=true;
   status.textContent="שחררו את הקליד, ואז נגנו את התו הבא ברצף";
@@ -168,16 +210,16 @@ function handlePitch(hz){
       if(seqMode){
         if(seqIndex<sequence.length-1){
           status.textContent="נכון! ✓ ממשיכים לתו הבא ברצף";
-          setTimeout(()=>{correctFlash=false;advanceSequence();},550);
+          pendingAdvance=setTimeout(()=>{correctFlash=false;advanceSequence();},550);
         } else {
           correct++; seqDone++; save(); updateScore();
           status.textContent="כל הכבוד! רצף שלם ✓";
-          setTimeout(()=>{correctFlash=false;chooseNote(true);},900);
+          pendingAdvance=setTimeout(()=>{correctFlash=false;chooseNote(true);},900);
         }
       } else {
         correct++; save(); updateScore();
         status.textContent="נכון! ✓";
-        setTimeout(()=>{correctFlash=false;chooseNote(true);},550);
+        pendingAdvance=setTimeout(()=>{correctFlash=false;chooseNote(true);},550);
       }
     }
   } else {
@@ -214,7 +256,7 @@ function detectPitch(pcm,sr){
 // ---- microphone ----
 let audioCtx=null, analyser=null, micStream=null, timer=null, buf=null;
 async function startListening(){
-  if(active) return;
+  if(active||demonstrating) return;
   if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){
     status.textContent="הדפדפן אינו תומך במיקרופון. פתחו בדפדפן מעודכן"; return;
   }
@@ -251,7 +293,7 @@ function stopListening(){
   analyser=null;
   micBtn.textContent="הפעלת מיקרופון"; micBtn.classList.remove("on");
   if(status.textContent!=="לחצו על הפעלת המיקרופון כדי להתחיל") status.textContent="המיקרופון עצור";
-  stable=0; transitioning=false;
+  clearTimeout(pendingAdvance); correctFlash=false; stable=0; transitioning=false; draw();
 }
 micBtn.addEventListener("click",()=>{ active?stopListening():startListening(); });
 hintBtn.addEventListener("click",()=>{ hintBtn.textContent=`${noteName(target)} · ${latinName(target)}`; });
@@ -260,8 +302,38 @@ $("harder").addEventListener("click",()=>changeLevel(1));
 $("easier").addEventListener("click",()=>changeLevel(-1));
 document.addEventListener("visibilitychange",()=>{ if(document.hidden&&active) stopListening(); });
 
+// A tap plays a synthesized reference, not a recording or an upload.
+async function demonstrate(){
+ if(demonstrating)return;
+ stopListening();demonstrating=true;
+ const controls=[...document.querySelectorAll("button,select")];controls.forEach(b=>b.disabled=true);
+ const saved={target,targetFinger,sequence,seqIndex};let ctx;
+ try{
+  ctx=new (window.AudioContext||window.webkitAudioContext)();await ctx.resume();
+  const l=LESSONS[level];sequence=[];
+  for(let i=0;i<l.notes.length;i++){
+   target=l.notes[i];targetFinger=l.fingers[i];updateFinger();draw();
+   status.textContent=`הדגמה: ${noteName(target)} · ${latinName(target)} · אצבע ${targetFinger}`;
+   const osc=ctx.createOscillator(),gain=ctx.createGain();osc.type="triangle";
+   osc.frequency.value=440*Math.pow(2,(target-69)/12);
+   gain.gain.setValueAtTime(0,ctx.currentTime);gain.gain.linearRampToValueAtTime(.16,ctx.currentTime+.02);gain.gain.exponentialRampToValueAtTime(.001,ctx.currentTime+.55);
+   osc.connect(gain);gain.connect(ctx.destination);osc.start();osc.stop(ctx.currentTime+.6);
+   await new Promise(resolve=>setTimeout(resolve,950));
+  }
+  status.textContent="ההדגמה הסתיימה. הפעילו מיקרופון ותרגלו לאט, כמה פעמים שצריך";
+ }catch(e){status.textContent="לא ניתן להשמיע כרגע. נסו שוב בלחיצה על הדגמה";}
+ finally{
+  if(ctx)await ctx.close().catch(()=>{});
+  ({target,targetFinger,sequence,seqIndex}=saved);demonstrating=false;controls.forEach(b=>b.disabled=false);updateFinger();draw();
+ }
+}
+$("demo").addEventListener("click",demonstrate);
+
 // ---- staff rendering (ported from the native StaffView) ----
-const WHITE=[60,62,64,65,67,69,71,72,74,76,77,79,81,83];
+const lessonSelect=$("lesson");
+LESSONS.forEach((l,i)=>{const o=document.createElement("option");o.value=i;o.textContent=l.name;lessonSelect.appendChild(o);});
+lessonSelect.addEventListener("change",()=>changeLevel(Number(lessonSelect.value)-level));
+const WHITE=[60,62,64,65,67,69,71,72,74,76,77,79,81,83,84];
 function draw(){
   const dpr=window.devicePixelRatio||1;
   const w=cv.clientWidth, h=cv.clientHeight;
@@ -270,7 +342,7 @@ function draw(){
   const c=cv.getContext("2d");
   c.setTransform(dpr,0,0,dpr,0,0);
   c.clearRect(0,0,w,h);
-  const gap=Math.min(w/14,h/8), top=(h-4*gap)/2, left=gap, right=w-gap;
+  const gap=Math.min(w/16,h/13), top=(h-2*gap)/2, left=gap, right=w-gap;
   c.strokeStyle="rgb(72,88,110)"; c.lineWidth=2; c.lineCap="round";
   for(let i=0;i<5;i++){ c.beginPath(); c.moveTo(left,top+i*gap); c.lineTo(right,top+i*gap); c.stroke(); }
   // Treble clef centered on the G4 line, drawn with bezier curves (no music font).
@@ -296,26 +368,30 @@ function draw(){
     c.moveTo(x-sw*1.7,y+sh*.32); c.lineTo(x+sw*1.7,y+sh*.10);
     c.stroke(); c.lineWidth=2;
   }
-  function drawNote(m,x,col){
+  function drawNote(m,x,col,finger){
     let step=WHITE.indexOf(m), sharp=false;
+    const flat=LESSONS[level].flat&&m%12===10;
+    if(flat)step=WHITE.indexOf(m+1);
     if(step<0){ step=WHITE.indexOf(m-1); if(step>=0) sharp=true; else step=0; }
     const y=noteY(step);
     c.strokeStyle="rgb(72,88,110)";
     c.beginPath();
     if(step<=0){ c.moveTo(x-gap,y); c.lineTo(x+gap,y); }
-    if(step>=12){ c.moveTo(x-gap,top-gap); c.lineTo(x+gap,top-gap); }
+    for(let ledger=12;ledger<=step;ledger+=2){const ly=noteY(ledger);c.moveTo(x-gap,ly);c.lineTo(x+gap,ly);}
     c.stroke();
+    if(flat){c.fillStyle=col;c.font=`${gap*1.8}px serif`;c.fillText("♭",x-gap*1.7,y+gap*.3);}
     if(sharp) drawSharp(x-gap*.98,y,col);
     c.fillStyle=col;
     c.save(); c.translate(x,y); c.rotate(-18*Math.PI/180);
     c.beginPath(); c.ellipse(0,0,gap*.65,gap*.42,0,0,2*Math.PI); c.fill();
     c.restore();
+    c.fillStyle=col;c.font=`bold ${Math.max(14,gap)}px Arial`;c.textAlign="center";c.fillText(String(finger),x,y+(step<6?1.8:-1.4)*gap);
     c.strokeStyle=col;
     const stemUp=step<6, stemX=stemUp?x+gap*.57:x-gap*.57;
     c.beginPath(); c.moveTo(stemX,y); c.lineTo(stemX,y+(stemUp?-3.2:3.2)*gap); c.stroke();
   }
   if(sequence.length===0){
-    drawNote(target,w*.59,correctFlash?"rgb(20,155,108)":"rgb(35,96,210)");
+    drawNote(target,w*.59,correctFlash?"rgb(20,155,108)":"rgb(35,96,210)",targetFinger);
   } else {
     const startX=left+2.6*gap, endX=right-gap*.7;
     const dx=sequence.length>1?(endX-startX)/(sequence.length-1):0;
@@ -324,7 +400,7 @@ function draw(){
       const col=i<seqIndex?"rgb(120,166,150)"
         :i===seqIndex?(correctFlash?"rgb(20,155,108)":"rgb(35,96,210)")
         :"rgb(150,160,175)";
-      drawNote(sequence[i],x,col);
+      drawNote(sequence[i],x,col,sequenceFingers[i]);
     }
   }
 }
@@ -333,12 +409,6 @@ window.addEventListener("resize",draw);
 // ---- init ----
 refreshModeLabels();
 chooseNote(false);
-// Deterministic target for visual testing: ?note=NN (MIDI number)
-const forced=+(new URLSearchParams(location.search).get("note")||0);
-if(forced>=21&&forced<=108){
-  seqMode=false; sequence=[]; seqIndex=0; target=forced;
-  refreshModeLabels(); updateScore(); draw();
-}
 </script>
 </body>
 </html>
