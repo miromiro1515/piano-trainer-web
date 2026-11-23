@@ -40,6 +40,8 @@
   .row { display: flex; gap: 8px; }
   .row button { flex: 1; }
   select { width:100%; padding:10px; font:inherit; border:1px solid #b8c8de; border-radius:10px; background:white; color:inherit; }
+  #octaveOptions { text-align:right; margin-top:8px; }
+  #octaveOptions label { display:block; font-size:14px; margin:7px 0 4px; }
   #exercise { font-size:15px; line-height:1.5; margin:8px 0; }
   #finger { font-size:21px; font-weight:600; color:#235fd2; }
   #legend { font-size:13px; line-height:1.5; }
@@ -53,6 +55,12 @@
   <div id="score"></div>
   <label for="lesson">בחירת תרגיל, אפשר גם לדלג</label>
   <select id="lesson"></select>
+  <div id="octaveOptions" hidden>
+    <label for="noteOrder">סדר התווים באוקטבה הראשונה</label>
+    <select id="noteOrder"><option value="mixed">מעורבב · קפיצות בין התווים</option><option value="scale">לפי הסדר · עלייה וירידה</option></select>
+    <label for="accidentals">סימני היתק באוקטבה הראשונה</label>
+    <select id="accidentals"><option value="natural">ללא · קלידים לבנים בלבד</option><option value="sharp">מוסיפים דיאזים ♯</option><option value="flat">מוסיפים במולים ♭</option><option value="both">מוסיפים דיאזים ובמולים ♯ ♭</option></select>
+  </div>
   <div id="exercise"></div>
   <div id="finger"></div>
   <div id="legend">יד ימין: 1 אגודל · 2 מורה · 3 אמה · 4 קמיצה · 5 זרת<br>המספרים מתאימים לתרגיל ולמנח היד, לא לכל הופעה של אותו תו. המיקרופון בודק צליל, לא אצבעות.</div>
@@ -67,7 +75,7 @@
     <button id="easier">קשה מדי · צעד אחורה</button>
     <button id="harder">קל מדי · צעד קדימה</button>
   </div>
-  <footer>הצליל מעובד בדפדפן בלבד. אין הקלטה או העלאה לרשת. ההתקדמות נשמרת במכשיר זה. גרסה 2.1.</footer>
+  <footer>הצליל מעובד בדפדפן בלבד. אין הקלטה או העלאה לרשת. ההתקדמות נשמרת במכשיר זה. גרסה 2.2.</footer>
 </main>
 <div id="visits"><img src="https://visitor-badge.laobi.icu/badge?page_id=miromiro1515.piano-trainer-web&left_text=%D7%91%D7%99%D7%A7%D7%95%D7%A8%D7%99%D7%9D" alt="" onerror="this.parentNode.style.display='none'"></div>
 <script>
@@ -80,7 +88,7 @@ const LESSONS=[
  {name:"1א · אוקטבה ראשונה: דו רה מי",notes:[60,62,64],fingers:[1,2,3],help:"הניחו אגודל ימין על דו האמצעי C4. מתרגלים רק שלושה תווים במנח קבוע."},
  {name:"1ב · אוקטבה ראשונה: דו עד סול",notes:[60,62,64,65,67],fingers:[1,2,3,4,5],help:"מנח קבוע: אגודל על C4, זרת על G4. בלי מעבר אגודל."},
  {name:"1ג · אוקטבה ראשונה: פה עד דו",notes:[65,67,69,71,72],fingers:[1,2,3,4,5],help:"הזיזו את היד: אגודל על F4, זרת על C5. זה מנח חדש, לכן המספרים השתנו."},
- {name:"1ד · אוקטבה ראשונה: סולם מלא",notes:[60,62,64,65,67,69,71,72],fingers:[1,2,3,1,2,3,4,5],ordered:true,help:"דו C4 עד דו C5, בעלייה ובירידה לפי הסדר. בעלייה האגודל עובר מתחת אחרי מי; בירידה אצבע 3 עוברת מעל אחרי פה."},
+ {name:"1ד · אוקטבה ראשונה מלאה · דו עד דו",notes:[60,62,64,65,67,69,71,72],fingers:[1,2,3,1,2,3,4,5],ordered:true,help:"דו C4 עד דו C5, בעלייה ובירידה לפי הסדר. בעלייה האגודל עובר מתחת אחרי מי; בירידה אצבע 3 עוברת מעל אחרי פה."},
  {name:"2א · אוקטבה שנייה בלבד: דו רה מי",notes:[72,74,76],fingers:[1,2,3],help:"עוברים ליד ימין גבוהה יותר: אגודל על C5. רק שלושה תווים, בלי ערבוב האוקטבה הראשונה."},
  {name:"2ב · אוקטבה שנייה: מוסיפים פה",notes:[72,74,76,77],fingers:[1,2,3,4],help:"אותו מנח, אגודל על C5. מוסיפים רק פה F5 באצבע 4 לשלושת התווים שכבר תרגלתם."},
  {name:"2ג · אוקטבה שנייה: מוסיפים סול",notes:[72,74,76,77,79],fingers:[1,2,3,4,5],help:"מנח קבוע גבוה: אגודל על C5, זרת על G5. מתרגלים את הקריאה מעל החמשה לאט."},
@@ -111,10 +119,34 @@ let sequence=[], seqIndex=0, correctFlash=false, active=false;
 let exerciseNotes=[], exerciseFingers=[], singleCursor=-1, pendingAdvance=null, demonstrating=false;
 
 function clampI(v,a,b){v=Math.round(isFinite(v)?v:a);return Math.max(a,Math.min(b,v));}
-function noteName(m){if(LESSONS[level].flat && m%12===10)return "סי במול";return NAMES[((m%12)+12)%12];}
-function latinName(m){return (LESSONS[level].flat&&m%12===10?"Bb":LATIN[m%12])+(Math.floor(m/12)-1);}
-function seqLength(){return LESSONS[level].ordered?4:3;}
+// Keep the existing first octave: middle C (C4) through C5, inclusive.
+let noteOrder=localStorage.getItem("pt_first_order")==="scale"?"scale":"mixed";
+let accidentals=localStorage.getItem("pt_first_accidentals")||"natural";
+if(!["natural","sharp","flat","both"].includes(accidentals))accidentals="natural";
+const FLAT_NAMES={1:"רה במול",3:"מי במול",6:"סול במול",8:"לה במול",10:"סי במול"};
+const FLAT_LATIN={1:"Db",3:"Eb",6:"Gb",8:"Ab",10:"Bb"};
+function firstOctave(){return level===3;}
+function isOrdered(){return firstOctave()?noteOrder==="scale":!!LESSONS[level].ordered;}
+function practiceNotes(){return firstOctave()&&accidentals!=="natural"?Array.from({length:13},(_,i)=>60+i):LESSONS[level].notes;}
+function usesFlat(m){
+ const pc=((m%12)+12)%12;
+ return firstOctave()?accidentals==="flat"&&pc in FLAT_NAMES||accidentals==="both"&&[3,8,10].includes(pc):!!LESSONS[level].flat&&pc===10;
+}
+function noteName(m){const pc=((m%12)+12)%12;return usesFlat(m)?FLAT_NAMES[pc]:NAMES[pc];}
+function latinName(m){const pc=((m%12)+12)%12;return (usesFlat(m)?FLAT_LATIN[pc]:LATIN[pc])+(Math.floor(m/12)-1);}
+function seqLength(){return isOrdered()?4:3;}
+function hasFingering(){return !firstOctave()||(noteOrder==="scale"&&accidentals==="natural");}
+function mixedIndex(previous){
+ if(!noteBag.length){
+  noteBag=exerciseNotes.map((_,i)=>i);
+  for(let i=noteBag.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[noteBag[i],noteBag[j]]=[noteBag[j],noteBag[i]];}
+ }
+ if(exerciseNotes[noteBag[noteBag.length-1]]===previous&&noteBag.length>1){const j=Math.floor(Math.random()*(noteBag.length-1));[noteBag[j],noteBag[noteBag.length-1]]=[noteBag[noteBag.length-1],noteBag[j]];}
+ return noteBag.pop();
+}
 function save(){
+  localStorage.setItem("pt_first_order",noteOrder);
+  localStorage.setItem("pt_first_accidentals",accidentals);
   localStorage.setItem("pt_lesson_v2",level);
   localStorage.setItem("pt_correct",correct);
   localStorage.setItem("pt_seqDone",seqDone);
@@ -124,7 +156,14 @@ function refreshModeLabels(){
   const base=seqMode?`יד ימין · מפתח סול · רצף של ${seqLength()} תווים`:"יד ימין · מפתח סול · תו אחד בכל פעם";
   subtitle.textContent=base+" · "+LEVEL_DESC[level];
   $("lesson").value=String(level);
+  $("octaveOptions").hidden=!firstOctave();
+  $("noteOrder").value=noteOrder;$("accidentals").value=accidentals;
+  $("legend").hidden=!hasFingering();
+  $("demo").textContent=hasFingering()?"לפני שמנגנים: הדגמת התווים והאצבעות":"לפני שמנגנים: הדגמת צלילי האוקטבה";
   $("exercise").textContent=LESSONS[level].help+" אין עלייה אוטומטית: חוזרים כמה שרוצים ועוברים צעד רק כשנוח.";
+  if(firstOctave()){
+    $("exercise").textContent="דו האמצעי C4 עד דו C5. "+(isOrdered()?"לפי הסדר בעלייה ובירידה. ":"התווים מעורבבים, ללא חזרה מיידית. ")+(accidentals==="natural"?"קלידים לבנים בלבד. ":"גם חמשת הקלידים השחורים שבאוקטבה. ")+(hasFingering()?"בעלייה האגודל עובר מתחת אחרי מי; בירידה אצבע 3 מעל אחרי פה. ":"בחרו אצבע נוחה לכל קפיצה; אין מספור אצבעות קבוע. ")+"אין עלייה אוטומטית ברמה.";
+  }
   modeBtn.textContent=seqMode?"מעבר לתרגול תו בודד":"מעבר לתרגול רצף תווים";
 }
 function updateScore(){
@@ -134,31 +173,37 @@ function updateScore(){
 }
 function buildExercise(){
  const l=LESSONS[level];
- if(l.ordered){
-   exerciseNotes=l.notes.concat(l.notes.slice(0,-1).reverse());
-   exerciseFingers=l.fingers.concat(l.fingers.slice(0,-1).reverse());
- }else{exerciseNotes=l.notes;exerciseFingers=l.fingers;}
+ const notes=practiceNotes();
+ if(isOrdered()){
+   exerciseNotes=notes.concat(notes.slice(0,-1).reverse());
+   exerciseFingers=hasFingering()?l.fingers.concat(l.fingers.slice(0,-1).reverse()):[];
+ }else{exerciseNotes=notes;exerciseFingers=hasFingering()?l.fingers:[];}
 }
 function fingerFor(m,index){
- return LESSONS[level].ordered?exerciseFingers[index]:LESSONS[level].fingers[LESSONS[level].notes.indexOf(m)];
+ if(!hasFingering())return null;
+ return isOrdered()?exerciseFingers[index]:LESSONS[level].fingers[LESSONS[level].notes.indexOf(m)];
 }
 let sequenceFingers=[], targetFinger=1;
-function updateFinger(){ $("finger").textContent=`אצבע ${targetFinger} ביד ימין`; }
+let noteBag=[];
+function updateFinger(){ $("finger").textContent=targetFinger?`אצבע ${targetFinger} ביד ימין`:"יד ימין · בחרו אצבע נוחה"; }
 function chooseNote(release=true){
   clearTimeout(pendingAdvance); correctFlash=false;
   buildExercise();
   if(seqMode){
+    const previous=sequence.length?sequence[sequence.length-1]:target;
     sequence=[]; sequenceFingers=[];
     for(let i=0;i<seqLength();i++){
       let idx;
-      if(LESSONS[level].ordered){ singleCursor=(singleCursor+1)%exerciseNotes.length;idx=singleCursor; }
+      if(isOrdered()){ singleCursor=(singleCursor+1)%exerciseNotes.length;idx=singleCursor; }
+      else if(firstOctave()){idx=mixedIndex(i?sequence[i-1]:previous);}
       else { const opts=exerciseNotes.map((_,j)=>j).filter(j=>exerciseNotes[j]!==sequence[i-1]);idx=opts[Math.floor(Math.random()*opts.length)]; }
       sequence.push(exerciseNotes[idx]); sequenceFingers.push(fingerFor(exerciseNotes[idx],idx));
     }
     seqIndex=0;target=sequence[0];targetFinger=sequenceFingers[0];
   }else{
     sequence=[];seqIndex=0;
-    if(LESSONS[level].ordered)singleCursor=(singleCursor+1)%exerciseNotes.length;
+    if(isOrdered())singleCursor=(singleCursor+1)%exerciseNotes.length;
+    else if(firstOctave())singleCursor=mixedIndex(target);
     else {const opts=exerciseNotes.map((_,j)=>j).filter(j=>exerciseNotes[j]!==target);singleCursor=opts[Math.floor(Math.random()*opts.length)];}
     target=exerciseNotes[singleCursor];targetFinger=fingerFor(target,singleCursor);
   }
@@ -172,11 +217,11 @@ function chooseNote(release=true){
 function changeLevel(delta){
   const next=clampI(level+delta,0,LEVELS.length-1);
   if(next===level){ status.textContent=delta<0?"זו הרמה הבסיסית. אפשר להיעזר ברמז":"זו הרמה המלאה. ממשיכים לתרגל!"; return; }
-  level=next; singleCursor=-1; save(); refreshModeLabels(); chooseNote(active);
+  level=next; noteBag=[]; singleCursor=-1; save(); refreshModeLabels(); chooseNote(active);
   if(!active) status.textContent="התרגיל הוחלף. אפשר לראות הדגמה ואז לתרגל בקצב שלכם";
 }
 function toggleMode(){
-  seqMode=!seqMode; singleCursor=-1; save(); refreshModeLabels(); chooseNote(active);
+  seqMode=!seqMode; noteBag=[]; singleCursor=-1; save(); refreshModeLabels(); chooseNote(active);
   if(!active) status.textContent=seqMode?"מצב רצף: נגנו את התווים אחד אחרי השני":"מצב תו בודד. הפעילו מיקרופון כדי לתרגל";
 }
 function advanceSequence(){
@@ -315,10 +360,10 @@ async function demonstrate(){
  const saved={target,targetFinger,sequence,seqIndex};let ctx;
  try{
   ctx=new (window.AudioContext||window.webkitAudioContext)();await ctx.resume();
-  const l=LESSONS[level];sequence=[];
-  for(let i=0;i<l.notes.length;i++){
-   target=l.notes[i];targetFinger=l.fingers[i];updateFinger();draw();
-   status.textContent=`הדגמה: ${noteName(target)} · ${latinName(target)} · אצבע ${targetFinger}`;
+  const l=LESSONS[level], notes=practiceNotes();sequence=[];
+  for(let i=0;i<notes.length;i++){
+   target=notes[i];targetFinger=hasFingering()?l.fingers[i]:null;updateFinger();draw();
+   status.textContent=`הדגמה: ${noteName(target)} · ${latinName(target)}`+(targetFinger?` · אצבע ${targetFinger}`:"");
    const osc=ctx.createOscillator(),gain=ctx.createGain();osc.type="triangle";
    osc.frequency.value=440*Math.pow(2,(target-69)/12);
    gain.gain.setValueAtTime(0,ctx.currentTime);gain.gain.linearRampToValueAtTime(.16,ctx.currentTime+.02);gain.gain.exponentialRampToValueAtTime(.001,ctx.currentTime+.55);
@@ -375,7 +420,7 @@ function draw(){
   }
   function drawNote(m,x,col,finger){
     let step=WHITE.indexOf(m), sharp=false;
-    const flat=LESSONS[level].flat&&m%12===10;
+    const flat=usesFlat(m);
     if(flat)step=WHITE.indexOf(m+1);
     if(step<0){ step=WHITE.indexOf(m-1); if(step>=0) sharp=true; else step=0; }
     const y=noteY(step);
@@ -390,7 +435,7 @@ function draw(){
     c.save(); c.translate(x,y); c.rotate(-18*Math.PI/180);
     c.beginPath(); c.ellipse(0,0,gap*.65,gap*.42,0,0,2*Math.PI); c.fill();
     c.restore();
-    c.fillStyle=col;c.font=`bold ${Math.max(14,gap)}px Arial`;c.textAlign="center";c.fillText(String(finger),x,y+(step<6?1.8:-1.4)*gap);
+    c.fillStyle=col;c.font=`bold ${Math.max(14,gap)}px Arial`;c.textAlign="center";if(finger)c.fillText(String(finger),x,y+(step<6?1.8:-1.4)*gap);
     c.strokeStyle=col;
     const stemUp=step<6, stemX=stemUp?x+gap*.57:x-gap*.57;
     c.beginPath(); c.moveTo(stemX,y); c.lineTo(stemX,y+(stemUp?-3.2:3.2)*gap); c.stroke();
@@ -410,6 +455,11 @@ function draw(){
   }
 }
 window.addEventListener("resize",draw);
+
+["noteOrder","accidentals"].forEach(id=>$(id).addEventListener("change",()=>{
+ noteOrder=$("noteOrder").value;accidentals=$("accidentals").value;
+ noteBag=[];singleCursor=-1;save();refreshModeLabels();chooseNote(active);
+}));
 
 // ---- init ----
 refreshModeLabels();
