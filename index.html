@@ -44,6 +44,8 @@
   #octaveOptions label { display:block; font-size:14px; margin:7px 0 4px; }
   #exercise { font-size:15px; line-height:1.5; margin:8px 0; }
   #finger { font-size:21px; font-weight:600; color:#235fd2; }
+  #fingerToggle { display:block; font-size:14px; margin-top:6px; text-align:right; }
+  #finger { min-height:26px; }
   #legend { font-size:13px; line-height:1.5; }
   footer { font-size: 12px; color: rgb(110,125,145); margin-top: 10px; }
 </style>
@@ -64,6 +66,7 @@
   <div id="exercise"></div>
   <div id="finger"></div>
   <div id="legend">יד ימין: 1 אגודל · 2 מורה · 3 אמה · 4 קמיצה · 5 זרת<br>המספרים מתאימים לתרגיל ולמנח היד, לא לכל הופעה של אותו תו. המיקרופון בודק צליל, לא אצבעות.</div>
+  <label id="fingerToggle"><input type="checkbox" id="showFingers"> הצגת מספרי אצבעות</label>
   <div id="staffwrap"><canvas id="staff"></canvas></div>
   <div id="status">לחצו על הפעלת המיקרופון כדי להתחיל</div>
   <div id="heard">נגנו תו אחד בכל פעם, בלי אקורד או דוושת השהיה</div>
@@ -75,7 +78,7 @@
     <button id="easier">קשה מדי · צעד אחורה</button>
     <button id="harder">קל מדי · צעד קדימה</button>
   </div>
-  <footer>הצליל מעובד בדפדפן בלבד. אין הקלטה או העלאה לרשת. ההתקדמות נשמרת במכשיר זה. גרסה 2.2.</footer>
+  <footer>הצליל מעובד בדפדפן בלבד. אין הקלטה או העלאה לרשת. ההתקדמות נשמרת במכשיר זה. גרסה 2.3.</footer>
 </main>
 <div id="visits"><img src="https://visitor-badge.laobi.icu/badge?page_id=miromiro1515.piano-trainer-web&left_text=%D7%91%D7%99%D7%A7%D7%95%D7%A8%D7%99%D7%9D" alt="" onerror="this.parentNode.style.display='none'"></div>
 <script>
@@ -184,8 +187,12 @@ function fingerFor(m,index){
  return isOrdered()?exerciseFingers[index]:LESSONS[level].fingers[LESSONS[level].notes.indexOf(m)];
 }
 let sequenceFingers=[], targetFinger=1;
+// Finger numbers can be hidden so practice trains note reading instead of
+// following finger cues. Hidden by default; the demo still shows them.
+let showFingers=localStorage.getItem("pt_show_fingers")==="1";
+function fingersOn(){ return showFingers||demonstrating; }
 let noteBag=[];
-function updateFinger(){ $("finger").textContent=targetFinger?`אצבע ${targetFinger} ביד ימין`:"יד ימין · בחרו אצבע נוחה"; }
+function updateFinger(){ $("finger").textContent=!fingersOn()?"":targetFinger?`אצבע ${targetFinger} ביד ימין`:"יד ימין · בחרו אצבע נוחה"; }
 function chooseNote(release=true){
   clearTimeout(pendingAdvance); correctFlash=false;
   buildExercise();
@@ -298,6 +305,21 @@ function detectPitch(pcm,sr){
   return null;
 }
 
+// ---- keep the screen awake while practicing ----
+// Screen Wake Lock API (Chrome/Edge on Android, Safari 16.4+). Where the
+// browser does not support it the app simply works as before.
+let wakeLock=null;
+async function holdWakeLock(){
+  if(!("wakeLock" in navigator)||document.hidden||wakeLock) return;
+  try{
+    wakeLock=await navigator.wakeLock.request("screen");
+    wakeLock.addEventListener("release",()=>{wakeLock=null;});
+  }catch(e){ wakeLock=null; }
+}
+function dropWakeLock(){
+  if(wakeLock){ wakeLock.release().catch(()=>{}); wakeLock=null; }
+}
+
 // ---- microphone ----
 let audioCtx=null, analyser=null, micStream=null, timer=null, buf=null;
 async function startListening(){
@@ -317,6 +339,7 @@ async function startListening(){
     src.connect(analyser);
     buf=new Float32Array(4096);
     active=true;
+    holdWakeLock();
     micBtn.textContent="עצירת מיקרופון"; micBtn.classList.add("on");
     status.textContent=seqMode?"נגנו את התווים שעל החמשה, אחד אחרי השני":"נגנו את התו שעל החמשה";
     waitingForRelease=false; stable=0;
@@ -337,6 +360,7 @@ async function startListening(){
 }
 function stopListening(){
   active=false;
+  dropWakeLock();
   if(timer){ clearInterval(timer); timer=null; }
   if(micStream){ micStream.getTracks().forEach(t=>t.stop()); micStream=null; }
   if(audioCtx){ audioCtx.close().catch(()=>{}); audioCtx=null; }
@@ -348,14 +372,17 @@ function stopListening(){
 micBtn.addEventListener("click",()=>{ active?stopListening():startListening(); });
 hintBtn.addEventListener("click",()=>{ hintBtn.textContent=`${noteName(target)} · ${latinName(target)}`; });
 modeBtn.addEventListener("click",toggleMode);
+const showFingersBox=$("showFingers");
+showFingersBox.checked=showFingers;
+showFingersBox.addEventListener("change",()=>{ showFingers=showFingersBox.checked; localStorage.setItem("pt_show_fingers",showFingers?"1":"0"); updateFinger(); draw(); });
 $("harder").addEventListener("click",()=>changeLevel(1));
 $("easier").addEventListener("click",()=>changeLevel(-1));
-document.addEventListener("visibilitychange",()=>{ if(document.hidden&&active) stopListening(); });
+document.addEventListener("visibilitychange",()=>{ if(document.hidden&&active) stopListening(); else if(!document.hidden&&(active||demonstrating)) holdWakeLock(); });
 
 // A tap plays a synthesized reference, not a recording or an upload.
 async function demonstrate(){
  if(demonstrating)return;
- stopListening();demonstrating=true;
+ stopListening();demonstrating=true;holdWakeLock();
  const controls=[...document.querySelectorAll("button,select")];controls.forEach(b=>b.disabled=true);
  const saved={target,targetFinger,sequence,seqIndex};let ctx;
  try{
@@ -374,7 +401,7 @@ async function demonstrate(){
  }catch(e){status.textContent="לא ניתן להשמיע כרגע. נסו שוב בלחיצה על הדגמה";}
  finally{
   if(ctx)await ctx.close().catch(()=>{});
-  ({target,targetFinger,sequence,seqIndex}=saved);demonstrating=false;controls.forEach(b=>b.disabled=false);updateFinger();draw();
+  ({target,targetFinger,sequence,seqIndex}=saved);demonstrating=false;if(!active)dropWakeLock();controls.forEach(b=>b.disabled=false);updateFinger();draw();
  }
 }
 $("demo").addEventListener("click",demonstrate);
@@ -441,7 +468,7 @@ function draw(){
     c.beginPath(); c.moveTo(stemX,y); c.lineTo(stemX,y+(stemUp?-3.2:3.2)*gap); c.stroke();
   }
   if(sequence.length===0){
-    drawNote(target,w*.59,correctFlash?"rgb(20,155,108)":"rgb(35,96,210)",targetFinger);
+    drawNote(target,w*.59,correctFlash?"rgb(20,155,108)":"rgb(35,96,210)",fingersOn()?targetFinger:null);
   } else {
     const startX=left+2.6*gap, endX=right-gap*.7;
     const dx=sequence.length>1?(endX-startX)/(sequence.length-1):0;
@@ -450,7 +477,7 @@ function draw(){
       const col=i<seqIndex?"rgb(120,166,150)"
         :i===seqIndex?(correctFlash?"rgb(20,155,108)":"rgb(35,96,210)")
         :"rgb(150,160,175)";
-      drawNote(sequence[i],x,col,sequenceFingers[i]);
+      drawNote(sequence[i],x,col,fingersOn()?sequenceFingers[i]:null);
     }
   }
 }
