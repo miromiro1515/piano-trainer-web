@@ -58,10 +58,10 @@
   <label for="lesson">בחירת תרגיל, אפשר גם לדלג</label>
   <select id="lesson"></select>
   <div id="octaveOptions" hidden>
-    <label for="noteOrder">סדר התווים באוקטבה הראשונה</label>
+    <label for="noteOrder">סדר התווים בתרגיל</label>
     <select id="noteOrder"><option value="mixed">מעורבב · קפיצות בין התווים</option><option value="scale">לפי הסדר · עלייה וירידה</option></select>
-    <label for="accidentals">סימני היתק באוקטבה הראשונה</label>
-    <select id="accidentals"><option value="natural">ללא · קלידים לבנים בלבד</option><option value="sharp">מוסיפים דיאזים ♯</option><option value="flat">מוסיפים במולים ♭</option><option value="both">מוסיפים דיאזים ובמולים ♯ ♭</option></select>
+    <span id="accidentalsWrap"><label for="accidentals">סימני היתק באוקטבה הראשונה</label>
+    <select id="accidentals"><option value="natural">ללא · קלידים לבנים בלבד</option><option value="sharp">מוסיפים דיאזים ♯</option><option value="flat">מוסיפים במולים ♭</option><option value="both">מוסיפים דיאזים ובמולים ♯ ♭</option></select></span>
   </div>
   <div id="exercise"></div>
   <div id="finger"></div>
@@ -78,7 +78,7 @@
     <button id="easier">קשה מדי · צעד אחורה</button>
     <button id="harder">קל מדי · צעד קדימה</button>
   </div>
-  <footer>הצליל מעובד בדפדפן בלבד. אין הקלטה או העלאה לרשת. ההתקדמות נשמרת במכשיר זה. גרסה 2.3.</footer>
+  <footer>הצליל מעובד בדפדפן בלבד. אין הקלטה או העלאה לרשת. ההתקדמות נשמרת במכשיר זה. גרסה 2.4.</footer>
 </main>
 <div id="visits"><img src="https://visitor-badge.laobi.icu/badge?page_id=miromiro1515.piano-trainer-web&left_text=%D7%91%D7%99%D7%A7%D7%95%D7%A8%D7%99%D7%9D" alt="" onerror="this.parentNode.style.display='none'"></div>
 <script>
@@ -99,7 +99,7 @@ const LESSONS=[
  {name:"2ה · במנח פה: מוסיפים סי",notes:[77,79,81,83],fingers:[1,2,3,4],help:"אגודל על F5. מוסיפים רק סי B5 באצבע 4 לשלושת התווים של המנח החדש."},
  {name:"2ו · במנח פה: מוסיפים דו",notes:[77,79,81,83,84],fingers:[1,2,3,4,5],help:"מנח חדש: אגודל על F5, זרת על C6. עדיין מתרגלים רק באוקטבה הגבוהה."},
  {name:"2ז · אוקטבה שנייה בלבד: סולם מלא",notes:[72,74,76,77,79,81,83,84],fingers:[1,2,3,1,2,3,4,5],ordered:true,help:"דו C5 עד דו C6, לפי הסדר ובחזרה. אותו מעבר אגודל כמו בסולם הראשון, אוקטבה למעלה."},
- {name:"3 · שילוב שתי אוקטבות, בלי סימני היתק",notes:[60,62,64,65,67,69,71,72,74,76,77,79,81,83,84],fingers:[1,2,3,1,2,3,4,1,2,3,1,2,3,4,5],ordered:true,help:"סולם C4 עד C6 ובחזרה. בדו האמצעי של התרגיל C5 משתמשים באגודל 1 כדי להמשיך, לא בזרת 5. אין קפיצות אקראיות."},
+ {name:"3 · שילוב שתי אוקטבות, בלי סימני היתק",notes:[60,62,64,65,67,69,71,72,74,76,77,79,81,83,84],fingers:[1,2,3,1,2,3,4,1,2,3,1,2,3,4,5],ordered:true,orderChoice:true,help:"תווים משתי האוקטבות יחד. ברירת המחדל מעורבבת אותם בקפיצות; באפשרויות למעלה אפשר לבחור גם סולם מלא לפי הסדר, ובו בדו C5 משתמשים באגודל 1 כדי להמשיך."},
  {name:"4א · דיאז: פה דיאז במנח קבוע",notes:[62,64,66,67,69],fingers:[1,2,3,4,5],help:"רק אחרי שתי האוקטבות: אגודל על D4, זרת על A4. אצבע 3 מנגנת פה דיאז, הקליד השחור שמימין לפה."},
  {name:"4ב · במול: סי במול במנח קבוע",notes:[65,67,69,70,72],fingers:[1,2,3,4,5],flat:true,help:"אגודל על F4, זרת על C5. אצבע 4 מנגנת סי במול, הקליד השחור שמשמאל לסי. זה אותו קליד כמו לה דיאז, בשם שמתאים לתרגיל."}
 ];
@@ -129,7 +129,8 @@ if(!["natural","sharp","flat","both"].includes(accidentals))accidentals="natural
 const FLAT_NAMES={1:"רה במול",3:"מי במול",6:"סול במול",8:"לה במול",10:"סי במול"};
 const FLAT_LATIN={1:"Db",3:"Eb",6:"Gb",8:"Ab",10:"Bb"};
 function firstOctave(){return level===3;}
-function isOrdered(){return firstOctave()?noteOrder==="scale":!!LESSONS[level].ordered;}
+function hasOrderChoice(){return firstOctave()||!!LESSONS[level].orderChoice;}
+function isOrdered(){return hasOrderChoice()?noteOrder==="scale":!!LESSONS[level].ordered;}
 function practiceNotes(){return firstOctave()&&accidentals!=="natural"?Array.from({length:13},(_,i)=>60+i):LESSONS[level].notes;}
 function usesFlat(m){
  const pc=((m%12)+12)%12;
@@ -138,7 +139,11 @@ function usesFlat(m){
 function noteName(m){const pc=((m%12)+12)%12;return usesFlat(m)?FLAT_NAMES[pc]:NAMES[pc];}
 function latinName(m){const pc=((m%12)+12)%12;return (usesFlat(m)?FLAT_LATIN[pc]:LATIN[pc])+(Math.floor(m/12)-1);}
 function seqLength(){return isOrdered()?4:3;}
-function hasFingering(){return !firstOctave()||(noteOrder==="scale"&&accidentals==="natural");}
+function hasFingering(){
+ if(firstOctave())return noteOrder==="scale"&&accidentals==="natural";
+ if(LESSONS[level].orderChoice)return noteOrder==="scale";
+ return true;
+}
 function mixedIndex(previous){
  if(!noteBag.length){
   noteBag=exerciseNotes.map((_,i)=>i);
@@ -159,7 +164,8 @@ function refreshModeLabels(){
   const base=seqMode?`יד ימין · מפתח סול · רצף של ${seqLength()} תווים`:"יד ימין · מפתח סול · תו אחד בכל פעם";
   subtitle.textContent=base+" · "+LEVEL_DESC[level];
   $("lesson").value=String(level);
-  $("octaveOptions").hidden=!firstOctave();
+  $("octaveOptions").hidden=!hasOrderChoice();
+  $("accidentalsWrap").hidden=!firstOctave();
   $("noteOrder").value=noteOrder;$("accidentals").value=accidentals;
   $("legend").hidden=!hasFingering();
   $("demo").textContent=hasFingering()?"לפני שמנגנים: הדגמת התווים והאצבעות":"לפני שמנגנים: הדגמת צלילי האוקטבה";
