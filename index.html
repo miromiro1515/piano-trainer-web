@@ -78,7 +78,7 @@
     <button id="easier">קשה מדי · צעד אחורה</button>
     <button id="harder">קל מדי · צעד קדימה</button>
   </div>
-  <footer>הצליל מעובד בדפדפן בלבד. אין הקלטה או העלאה לרשת. ההתקדמות נשמרת במכשיר זה. גרסה 2.4.</footer>
+  <footer>הצליל מעובד בדפדפן בלבד. אין הקלטה או העלאה לרשת. ההתקדמות נשמרת במכשיר זה. גרסה 2.5.</footer>
 </main>
 <div id="visits"><img src="https://visitor-badge.laobi.icu/badge?page_id=miromiro1515.piano-trainer-web&left_text=%D7%91%D7%99%D7%A7%D7%95%D7%A8%D7%99%D7%9D" alt="" onerror="this.parentNode.style.display='none'"></div>
 <script>
@@ -311,9 +311,10 @@ function detectPitch(pcm,sr){
   return null;
 }
 
-// ---- keep the screen awake while practicing ----
-// Screen Wake Lock API (Chrome/Edge on Android, Safari 16.4+). Where the
-// browser does not support it the app simply works as before.
+// ---- keep the screen awake while the app is in use ----
+// Screen Wake Lock API (Chrome/Edge on Android, Safari 16.4+). Held whenever
+// the page is visible, released by the browser when it is hidden or closed.
+// Where the API is missing the app simply works as before.
 let wakeLock=null;
 async function holdWakeLock(){
   if(!("wakeLock" in navigator)||document.hidden||wakeLock) return;
@@ -322,9 +323,9 @@ async function holdWakeLock(){
     wakeLock.addEventListener("release",()=>{wakeLock=null;});
   }catch(e){ wakeLock=null; }
 }
-function dropWakeLock(){
-  if(wakeLock){ wakeLock.release().catch(()=>{}); wakeLock=null; }
-}
+holdWakeLock();
+document.addEventListener("pointerdown",holdWakeLock);
+document.addEventListener("keydown",holdWakeLock);
 
 // ---- microphone ----
 let audioCtx=null, analyser=null, micStream=null, timer=null, buf=null;
@@ -345,7 +346,6 @@ async function startListening(){
     src.connect(analyser);
     buf=new Float32Array(4096);
     active=true;
-    holdWakeLock();
     micBtn.textContent="עצירת מיקרופון"; micBtn.classList.add("on");
     status.textContent=seqMode?"נגנו את התווים שעל החמשה, אחד אחרי השני":"נגנו את התו שעל החמשה";
     waitingForRelease=false; stable=0;
@@ -366,7 +366,6 @@ async function startListening(){
 }
 function stopListening(){
   active=false;
-  dropWakeLock();
   if(timer){ clearInterval(timer); timer=null; }
   if(micStream){ micStream.getTracks().forEach(t=>t.stop()); micStream=null; }
   if(audioCtx){ audioCtx.close().catch(()=>{}); audioCtx=null; }
@@ -383,12 +382,12 @@ showFingersBox.checked=showFingers;
 showFingersBox.addEventListener("change",()=>{ showFingers=showFingersBox.checked; localStorage.setItem("pt_show_fingers",showFingers?"1":"0"); updateFinger(); draw(); });
 $("harder").addEventListener("click",()=>changeLevel(1));
 $("easier").addEventListener("click",()=>changeLevel(-1));
-document.addEventListener("visibilitychange",()=>{ if(document.hidden&&active) stopListening(); else if(!document.hidden&&(active||demonstrating)) holdWakeLock(); });
+document.addEventListener("visibilitychange",()=>{ if(document.hidden&&active) stopListening(); else if(!document.hidden) holdWakeLock(); });
 
 // A tap plays a synthesized reference, not a recording or an upload.
 async function demonstrate(){
  if(demonstrating)return;
- stopListening();demonstrating=true;holdWakeLock();
+ stopListening();demonstrating=true;
  const controls=[...document.querySelectorAll("button,select")];controls.forEach(b=>b.disabled=true);
  const saved={target,targetFinger,sequence,seqIndex};let ctx;
  try{
@@ -407,7 +406,7 @@ async function demonstrate(){
  }catch(e){status.textContent="לא ניתן להשמיע כרגע. נסו שוב בלחיצה על הדגמה";}
  finally{
   if(ctx)await ctx.close().catch(()=>{});
-  ({target,targetFinger,sequence,seqIndex}=saved);demonstrating=false;if(!active)dropWakeLock();controls.forEach(b=>b.disabled=false);updateFinger();draw();
+  ({target,targetFinger,sequence,seqIndex}=saved);demonstrating=false;controls.forEach(b=>b.disabled=false);updateFinger();draw();
  }
 }
 $("demo").addEventListener("click",demonstrate);
