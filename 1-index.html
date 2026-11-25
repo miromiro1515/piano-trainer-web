@@ -1,0 +1,699 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Piano Notes Learning Free</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    background: rgb(247,249,252);
+    color: rgb(24,40,65);
+    font-family: -apple-system, "Segoe UI", Roboto, "Noto Sans Hebrew", Arial, sans-serif;
+    display: flex; justify-content: center;
+  }
+  main {
+    width: 100%; max-width: 560px; min-height: 100%;
+    display: flex; flex-direction: column;
+    padding: calc(18px + env(safe-area-inset-top)) 20px calc(14px + env(safe-area-inset-bottom));
+    text-align: center;
+  }
+  main > * { flex-shrink:0; }
+  h1 { font-size: 25px; margin: 4px 0 2px; font-weight: 600; }
+  #visits { position: fixed; bottom: 8px; left: 8px; opacity: .75; z-index: 5; }
+  #visits img { height: 20px; display: block; }
+  #subtitle { font-size: 16px; margin: 3px 0; }
+  #score { font-size: 15px; margin: 3px 0; }
+  #staffwrap { flex: 1; height: 240px; min-height: 200px; margin: 6px 0; }
+  canvas { width: 100%; height: 100%; display: block; }
+  #status { font-size: 19px; margin: 6px 0; min-height: 26px; }
+  #heard { font-size: 16px; margin: 3px 0; min-height: 22px; color: rgb(60,80,105); }
+  button {
+    width: 100%; border: 0; border-radius: 14px; margin-top: 8px;
+    font-size: 17px; font-family: inherit; color: rgb(24,40,65);
+    background: rgb(228,236,248); padding: 13px;
+  }
+  button:active { background: rgb(205,220,242); }
+  #mic { background: rgb(35,96,210); color: #fff; font-size: 18px; }
+  #mic.on { background: rgb(190,70,60); }
+  .row { display: flex; gap: 8px; }
+  .row button { flex: 1; }
+  select { width:100%; padding:10px; font:inherit; border:1px solid #b8c8de; border-radius:10px; background:white; color:inherit; }
+  #options { text-align:right; margin:8px 0 0; padding:10px 12px; background:#fff; border:1px solid #d5e0ef; border-radius:12px; }
+  #options .opt { display:flex; align-items:center; gap:10px; font-size:17px; padding:7px 0; }
+  #options .opt input { width:22px; height:22px; flex:none; }
+  #options select { margin:2px 0 6px; padding:8px; }
+  #options .steps { margin-inline-start:28px; border-inline-start:3px solid #d5e0ef; padding-inline-start:10px; }
+  #options .steps .opt { font-size:16px; padding:4px 0; }
+  #options .sub { font-size:14px; margin:4px 0 2px; }
+  #acc { font-size:26px; font-weight:700; margin:10px 0 0; color:rgb(35,96,210); }
+  #exercise { font-size:15px; line-height:1.5; margin:8px 0; }
+  #finger { font-size:21px; font-weight:600; color:#235fd2; }
+  #finger { min-height:26px; }
+  #legend { font-size:13px; line-height:1.5; }
+  footer { font-size: 12px; color: rgb(110,125,145); margin-top: 10px; }
+</style>
+</head>
+<body>
+<main>
+  <h1 dir="ltr">Piano Notes Learning Free</h1>
+  <div id="subtitle"></div>
+  <div id="score"></div>
+  <div id="options">
+    <label class="opt"><input type="checkbox" id="o1"> אוקטבה ראשונה</label>
+    <div id="o1rangeWrap" class="steps" hidden>
+      <label class="opt"><input type="checkbox" id="o1s3" disabled checked> דו רה מי</label>
+      <label class="opt"><input type="checkbox" id="o1s5"> מוסיף עד סול</label>
+      <label class="opt"><input type="checkbox" id="o1s8"> מוסיף את כל האוקטבה (עד דו)</label>
+    </div>
+    <label class="opt"><input type="checkbox" id="o2"> אוקטבה שנייה</label>
+    <div id="o2rangeWrap" class="steps" hidden>
+      <label class="opt"><input type="checkbox" id="o2s3" disabled checked> דו רה מי</label>
+      <label class="opt"><input type="checkbox" id="o2s5"> מוסיף עד סול</label>
+      <label class="opt"><input type="checkbox" id="o2s8"> מוסיף את כל האוקטבה</label>
+    </div>
+    <label class="opt"><input type="checkbox" id="flat"> במולים ♭</label>
+    <label class="opt"><input type="checkbox" id="sharp"> דיאזים ♯</label>
+    <label class="opt"><input type="checkbox" id="showFingers"> מספרי אצבעות</label>
+    <div class="sub">סדר התווים</div>
+    <label class="opt"><input type="checkbox" id="rolling"> רצף רציף (בתרגול רצף: התווים שנוגנו מתחלפים מיד)</label>
+    <select id="noteOrder"><option value="mixed">מעורבב · קפיצות קטנות</option><option value="scale">לפי הסדר · עלייה וירידה</option></select>
+  </div>
+  <div id="exercise"></div>
+  <div class="row"><button id="calib">כיוון אוקטבה אמצעית</button><button id="calibReset">איפוס כיוון</button></div>
+  <div id="calibInfo" style="font-size:13px;margin:4px 0"></div>
+  <div id="finger"></div>
+  <div id="legend">יד ימין: 1 אגודל · 2 מורה · 3 אמה · 4 קמיצה · 5 זרת<br>המספרים מתאימים לתרגיל ולמנח היד, לא לכל הופעה של אותו תו. המיקרופון בודק צליל, לא אצבעות.</div>
+  <div id="acc"></div>
+  <canvas id="accGraph" style="width:100%;height:96px;display:block;margin:2px 0 0"></canvas>
+  <div id="staffwrap"><canvas id="staff"></canvas></div>
+  <div id="status">לחצו על הפעלת המיקרופון כדי להתחיל</div>
+  <div id="heard">נגנו תו אחד בכל פעם, בלי אקורד או דוושת השהיה</div>
+  <button id="demo">לפני שמנגנים: הדגמת התווים והאצבעות</button>
+  <button id="mic">הפעלת מיקרופון</button>
+  <button id="hint">רמז: שם התו</button>
+  <button id="mode"></button>
+  <footer>הצליל מעובד בדפדפן בלבד. אין הקלטה או העלאה לרשת. ההתקדמות נשמרת במכשיר זה. גרסה 4.2.</footer>
+</main>
+<div id="visits"><img src="https://visitor-badge.laobi.icu/badge?page_id=miromiro1515.piano-trainer-web&left_text=%D7%91%D7%99%D7%A7%D7%95%D7%A8%D7%99%D7%9D" alt="" onerror="this.parentNode.style.display='none'"></div>
+<script>
+"use strict";
+// ---- training model (ported from the native app) ----
+const NAMES=["דו","דו דיאז","רה","רה דיאז","מי","פה","פה דיאז","סול","סול דיאז","לה","לה דיאז","סי"];
+const LATIN=["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
+const WHITE_O1=[60,62,64,65,67,69,71,72], WHITE_O2=[72,74,76,77,79,81,83,84];
+const FULL_FINGERS=[1,2,3,1,2,3,4,5];
+const BLACK_PC=[1,3,6,8,10];
+function ls(k,d){const v=localStorage.getItem(k);return v===null?d:v;}
+let opt={o1n:[3,5,8].includes(+ls("pt_o1n","8"))?+ls("pt_o1n","8"):8,o1:ls("pt_o1","1")==="1",o2:ls("pt_o2","0")==="1",o2n:[3,5,8].includes(+ls("pt_o2n","3"))?+ls("pt_o2n","3"):3,flat:ls("pt_flat","0")==="1",sharp:ls("pt_sharp","0")==="1"};
+if(!opt.o1&&!opt.o2)opt.o1=true;
+// Practice pool from the checkboxes. Fingers only when a fixed hand position exists.
+function pool(){
+ let white=[];
+ if(opt.o1)white=white.concat(WHITE_O1.slice(0,opt.o1n));
+ if(opt.o2)white=white.concat(WHITE_O2.slice(0,opt.o2n));
+ white=[...new Set(white)].sort((a,b)=>a-b);
+ const notes=white.slice();
+ if(opt.flat||opt.sharp){
+  for(let m=white[0];m<=white[white.length-1];m++){if(BLACK_PC.includes(m%12))notes.push(m);}
+  notes.sort((a,b)=>a-b);
+ }
+ let fingers=null;
+ if(!opt.flat&&!opt.sharp&&!(opt.o1&&opt.o2)){
+  const ordered=noteOrder==="scale";
+  const n=opt.o1?opt.o1n:opt.o2n;
+  fingers=(ordered||n<8)?(n===3?[1,2,3]:n===5?[1,2,3,4,5]:FULL_FINGERS):null;
+ }
+ return {notes,fingers};
+}
+function describe(){
+ const parts=[];
+ if(opt.o1)parts.push("אוקטבה ראשונה ("+({3:"דו רה מי",5:"עד סול",8:"כולה"}[opt.o1n])+")");
+ if(opt.o2)parts.push("אוקטבה שנייה ("+({3:"דו רה מי",5:"עד סול",8:"כולה"}[opt.o2n])+")");
+ if(opt.flat)parts.push("במולים");
+ if(opt.sharp)parts.push("דיאזים");
+ return parts.join(" + ");
+}
+const $=id=>document.getElementById(id);
+const subtitle=$("subtitle"), scoreEl=$("score"), status=$("status"), heard=$("heard");
+const micBtn=$("mic"), hintBtn=$("hint"), modeBtn=$("mode");
+const cv=$("staff");
+
+// Existing totals, mode, and legacy level are retained. This revision starts at
+// three upper notes as requested; future visits restore the exact new lesson.
+let correct=+localStorage.getItem("pt_correct")||0;
+let seqDone=+localStorage.getItem("pt_seqDone")||0;
+let seqMode=localStorage.getItem("pt_seqMode")==="1";
+let target=60, stable=0, releaseFrames=0, waitingForRelease=false, transitioning=false;
+let sequence=[], seqIndex=0, correctFlash=false, active=false;
+let exerciseNotes=[], exerciseFingers=[], singleCursor=-1, pendingAdvance=null, demonstrating=false;
+
+function clampI(v,a,b){v=Math.round(isFinite(v)?v:a);return Math.max(a,Math.min(b,v));}
+let noteOrder=localStorage.getItem("pt_first_order")==="scale"?"scale":"mixed";
+const FLAT_NAMES={1:"רה במול",3:"מי במול",6:"סול במול",8:"לה במול",10:"סי במול"};
+const FLAT_LATIN={1:"Db",3:"Eb",6:"Gb",8:"Ab",10:"Bb"};
+function isOrdered(){return noteOrder==="scale";}
+function usesFlat(m){
+ const pc=((m%12)+12)%12;
+ if(!BLACK_PC.includes(pc))return false;
+ if(opt.flat&&!opt.sharp)return true;
+ return opt.flat&&opt.sharp&&[3,8,10].includes(pc);
+}
+function noteName(m){const pc=((m%12)+12)%12;return usesFlat(m)?FLAT_NAMES[pc]:NAMES[pc];}
+function latinName(m){const pc=((m%12)+12)%12;return (usesFlat(m)?FLAT_LATIN[pc]:LATIN[pc])+(Math.floor(m/12)-1);}
+// Notes per staff line fit the width: up to 10, at least 5. Accidentals need
+// more room per note, so fewer fit with flats/sharps on a narrow screen.
+function seqSpacing(){return (opt.flat||opt.sharp)?2.8:2.0;}
+function seqLength(){const w=cv.clientWidth||320;return Math.max(5,Math.min(10,Math.floor((w-5.3*15)/(seqSpacing()*15))+1));}
+function hasFingering(){return pool().fingers!==null;}
+// Mixed order: random, but each note stays within MAX_LEAP semitones of the
+// previous one (a fifth, so no octave jumps). Difficult notes are weighted up,
+// and recently shown notes are weighted down so the whole pool gets covered.
+const MAX_LEAP=7;
+let recentIdx=[];
+function mixedIndex(previous){
+ const n=exerciseNotes.length;
+ const cand=[];
+ for(let i=0;i<n;i++){
+  const m=exerciseNotes[i]; if(m===previous&&n>1)continue;
+  cand.push(i);
+ }
+ let near=cand.filter(i=>previous===undefined||previous===null||Math.abs(exerciseNotes[i]-previous)<=MAX_LEAP);
+ if(!near.length)near=cand;
+ const weights=near.map(i=>{
+  let w=1+Math.ceil((hard[exerciseNotes[i]]||0)/2);
+  const r=recentIdx.lastIndexOf(i);
+  if(r>=0){const age=recentIdx.length-r; w*=age<=1?0.15:age<=3?0.4:0.8;}
+  return w;
+ });
+ let x=Math.random()*weights.reduce((a,b)=>a+b,0),pick=near[near.length-1];
+ for(let k=0;k<near.length;k++){x-=weights[k];if(x<=0){pick=near[k];break;}}
+ recentIdx.push(pick); if(recentIdx.length>8)recentIdx.shift();
+ return pick;
+}
+function save(){
+  localStorage.setItem("pt_first_order",noteOrder);
+  localStorage.setItem("pt_o1",opt.o1?"1":"0");localStorage.setItem("pt_o2",opt.o2?"1":"0");
+  localStorage.setItem("pt_o2n",opt.o2n);localStorage.setItem("pt_o1n",opt.o1n);localStorage.setItem("pt_flat",opt.flat?"1":"0");localStorage.setItem("pt_sharp",opt.sharp?"1":"0");
+  localStorage.setItem("pt_correct",correct);
+  localStorage.setItem("pt_seqDone",seqDone);
+  localStorage.setItem("pt_seqMode",seqMode?"1":"0");
+}
+function refreshModeLabels(){
+  const base=seqMode?`יד ימין · מפתח סול · רצף של ${seqLength()} תווים`:"יד ימין · מפתח סול · תו אחד בכל פעם";
+  subtitle.textContent=base+" · "+describe();
+  $("o1").checked=opt.o1;$("o2").checked=opt.o2;$("flat").checked=opt.flat;$("sharp").checked=opt.sharp;
+  $("o1rangeWrap").hidden=!opt.o1;$("o2rangeWrap").hidden=!opt.o2;
+  $("o1s5").checked=opt.o1n>=5;$("o1s8").checked=opt.o1n>=8;$("o2s5").checked=opt.o2n>=5;$("o2s8").checked=opt.o2n>=8;$("noteOrder").value=noteOrder;
+  $("legend").hidden=!hasFingering();
+  $("demo").textContent=hasFingering()?"לפני שמנגנים: הדגמת התווים והאצבעות":"לפני שמנגנים: הדגמת הצלילים";
+  $("exercise").textContent=(isOrdered()?"התווים לפי הסדר בעלייה ובירידה. ":"התווים מעורבבים, ללא חזרה מיידית. ")+(hasFingering()?"המספרים לפי מנח היד הקבוע. ":"אין מספור אצבעות קבוע לבחירה הזו, בחרו אצבע נוחה. ")+"מסמנים או מבטלים תיבות כדי לשנות את התרגיל.";
+  modeBtn.textContent=seqMode?"מעבר לתרגול תו בודד":"מעבר לתרגול רצף תווים";
+}
+function updateScore(){
+  scoreEl.textContent=(seqMode&&!rolling?`${seqDone} רצפים הושלמו`:`${correct} תווים נכונים`);
+  $("acc").textContent=accuracyText();
+}
+function buildExercise(){
+ const p=pool(), notes=p.notes;
+ if(isOrdered()){
+   exerciseNotes=notes.concat(notes.slice(0,-1).reverse());
+   exerciseFingers=p.fingers?p.fingers.concat(p.fingers.slice(0,-1).reverse()):[];
+ }else{exerciseNotes=notes;exerciseFingers=p.fingers||[];}
+}
+function fingerFor(m,index){
+ const p=pool();
+ if(!p.fingers)return null;
+ return isOrdered()?exerciseFingers[index]:p.fingers[p.notes.indexOf(m)];
+}
+let sequenceFingers=[], targetFinger=1;
+// Finger numbers can be hidden so practice trains note reading instead of
+// following finger cues. Hidden by default; the demo still shows them.
+let showFingers=localStorage.getItem("pt_show_fingers")==="1";
+function fingersOn(){ return showFingers||demonstrating; }
+let noteBag=[];
+// Difficult notes: a note missed on its first try is drawn pink and gets a
+// score; the score drops with each clean success and the note leaves the
+// extra-practice pool at 0. Used only in mixed order (ordered keeps the scale).
+const PINK="rgb(226,84,130)";
+let hard={};try{hard=JSON.parse(localStorage.getItem("pt_hard")||"{}")||{};}catch(e){hard={};}
+// Calibration: semitone offset between the instrument and standard pitch
+// (middle C = C4 = 261.63 Hz, MIDI 60). Default 0. Stored on this device only.
+let calib=+localStorage.getItem("pt_calib")||0, calibrating=false, calibSamples=[];
+function calibrateStep(hz){
+ if(hz==null){calibSamples=[];return;}
+ const raw=69+12*Math.log2(hz/440);
+ calibSamples.push(raw); if(calibSamples.length>6)calibSamples.shift();
+ if(calibSamples.length<6)return;
+ const mn=Math.min(...calibSamples),mx=Math.max(...calibSamples);
+ if(mx-mn>0.35)return;
+ const med=[...calibSamples].sort((a,b)=>a-b)[3], off=med-60;
+ if(Math.abs(off)>1.5){status.textContent=`נשמע ${Math.round(hz)} Hz, רחוק מדו האמצעי (כ-262 Hz). נגנו את דו האמצעי`;calibSamples=[];return;}
+ calib=off; localStorage.setItem("pt_calib",String(calib)); calibrating=false; calibSamples=[];
+ $("calib").textContent="כיוון אוקטבה אמצעית"; refreshCalibLabel();
+ status.textContent=`כוון! דו אמצעי נשמע ${Math.round(hz)} Hz, זו נקודת הייחוס`;
+ waitingForRelease=true; releaseFrames=0; stable=0;
+}
+function refreshCalibLabel(){ $("calibInfo").textContent=calib===0?"כיוון: ברירת מחדל (דו אמצעי = 262 Hz)":`כיוון אישי: דו אמצעי = ${Math.round(261.63*Math.pow(2,calib/12))} Hz`; }
+// Wrong-note feedback: a soft low beep (below the 180 Hz detection range, plus a
+// short input mute) and a brief shake of the target note.
+let mutedUntil=0, lastBeep=0, shakeStart=0;
+function wrongFeedback(){
+ const now=performance.now();
+ if(now-lastBeep<900)return; lastBeep=now;
+ shakeStart=now; requestAnimationFrame(shakeTick);
+ try{
+  if(audioCtx){
+   mutedUntil=now+450;
+   const o=audioCtx.createOscillator(),g=audioCtx.createGain(),t=audioCtx.currentTime;
+   o.type="sine"; o.frequency.value=130;
+   g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(.06,t+.02); g.gain.exponentialRampToValueAtTime(.001,t+.18);
+   o.connect(g); g.connect(audioCtx.destination); o.start(t); o.stop(t+.2);
+  }
+ }catch(e){}
+}
+function shakeTick(){ draw(); if(performance.now()-shakeStart<320)requestAnimationFrame(shakeTick); }
+function shakeOff(){ const d=performance.now()-shakeStart; return d<320?Math.sin(d/320*Math.PI*6)*(1-d/320)*10:0; }
+let lastNote=-1, otherNote=null, otherCount=0, ignoreLastUntil=0;
+let rolling=ls("pt_rolling","1")==="1", playedSlots=[], ROLL_KEEP=2;
+let missedNow=false, wrongFrames=0, seqMissed=[], seqFinished=false;
+function saveHard(){localStorage.setItem("pt_hard",JSON.stringify(hard));}
+// Accuracy = share of notes got right on the first try, over the last 50
+// attempts (rolling, saved on this device, never resets by itself).
+let attempts=[];try{attempts=JSON.parse(localStorage.getItem("pt_attempts")||"[]")||[];}catch(e){attempts=[];}
+function accuracyText(){
+ if(!attempts.length)return "דיוק: —";
+ const ok=attempts.reduce((a,b)=>a+b,0);
+ return `דיוק: ${Math.round(100*ok/attempts.length)}% (${attempts.length} ניסיונות אחרונים)`;
+}
+// Progress graph: rolling accuracy after each attempt (x axis = attempts, not
+// sessions), last 200 points, saved on this device.
+let spdSeries=[],times=[],shownAt=performance.now();
+try{spdSeries=JSON.parse(localStorage.getItem("pt_spdSeries")||"[]")||[];times=JSON.parse(localStorage.getItem("pt_times")||"[]")||[];}catch(e){spdSeries=[];times=[];}
+const SPD_SLOW=8; // seconds per note that maps to the bottom of the graph
+let accSeries=[];try{accSeries=JSON.parse(localStorage.getItem("pt_accSeries")||"[]")||[];}catch(e){accSeries=[];}
+function drawAccGraph(){
+ const cvg=document.getElementById("accGraph"); if(!cvg)return;
+ const dpr=window.devicePixelRatio||1, w=cvg.clientWidth, h=cvg.clientHeight; if(!w||!h)return;
+ cvg.width=Math.round(w*dpr); cvg.height=Math.round(h*dpr);
+ const c=cvg.getContext("2d"); c.setTransform(dpr,0,0,dpr,0,0); c.clearRect(0,0,w,h);
+ const L=30,R=6,T=6,B=18, gw=w-L-R, gh=h-T-B;
+ c.strokeStyle="rgb(210,220,235)"; c.lineWidth=1; c.fillStyle="rgb(110,125,145)"; c.font="10px Arial"; c.textAlign="right";
+ [0,50,100].forEach(v=>{const y=T+gh*(1-v/100); c.beginPath(); c.moveTo(L,y); c.lineTo(w-R,y); c.stroke(); c.fillText(v+"%",L-4,y+3);});
+ const n=accSeries.length;
+ c.textAlign="center";
+ const ORANGE="rgb(230,130,30)", BLUE="rgb(35,96,210)";
+ if(n<2){c.fillStyle="rgb(110,125,145)";c.fillText(n?"עוד כמה ניסיונות לגרף":"הגרף יופיע אחרי כמה ניסיונות",L+gw/2,T+gh/2+8);}
+ else{
+  const line=(arr,col,f)=>{c.strokeStyle=col;c.lineWidth=2;c.lineJoin="round";c.beginPath();
+   arr.forEach((v,i)=>{const x=L+gw*i/(n-1),y=T+gh*(1-f(v)/100);i?c.lineTo(x,y):c.moveTo(x,y);});c.stroke();
+   const lv=f(arr[arr.length-1]);c.fillStyle=col;c.beginPath();c.arc(L+gw,T+gh*(1-lv/100),3,0,6.3);c.fill();};
+  line(accSeries,BLUE,v=>v);
+  const sp=spdSeries.slice(-n);
+  if(sp.length>=2){const off=n-sp.length; c.strokeStyle=ORANGE;c.lineWidth=2;c.beginPath();
+   sp.forEach((t,i)=>{const x=L+gw*(i+off)/(n-1),y=T+gh*(1-Math.max(0,Math.min(100,100*(1-t/SPD_SLOW)))/100);i?c.lineTo(x,y):c.moveTo(x,y);});c.stroke();
+   const lt=sp[sp.length-1];c.fillStyle=ORANGE;c.beginPath();c.arc(L+gw,T+gh*(1-Math.max(0,Math.min(100,100*(1-lt/SPD_SLOW)))/100),3,0,6.3);c.fill();}
+ }
+ // legend
+ c.font="11px Arial"; c.textAlign="right"; c.direction="rtl";
+ const lastT=spdSeries.length?spdSeries[spdSeries.length-1].toFixed(1):"—";
+ let x=w-R;
+ c.fillStyle=BLUE;c.fillRect(x-14,h-10,14,3);c.fillStyle="rgb(60,80,105)";c.fillText("דיוק",x-18,h-4);
+ x-=70;
+ c.fillStyle=ORANGE;c.fillRect(x-14,h-10,14,3);c.fillStyle="rgb(60,80,105)";c.fillText(`מהירות (למעלה = מהר) · ${lastT} שנ׳ לתו`,x-18,h-4);
+ c.direction="ltr";
+}
+window.addEventListener("resize",drawAccGraph);
+function recordResult(m,missed){
+ attempts.push(missed?0:1); if(attempts.length>50)attempts.shift();
+ localStorage.setItem("pt_attempts",JSON.stringify(attempts));
+ document.getElementById("acc").textContent=accuracyText();
+times.push(Math.min(15,(performance.now()-shownAt)/1000)); if(times.length>10)times.shift();
+ spdSeries.push(times.reduce((a,b)=>a+b,0)/times.length); if(spdSeries.length>200)spdSeries.shift();
+ localStorage.setItem("pt_times",JSON.stringify(times)); localStorage.setItem("pt_spdSeries",JSON.stringify(spdSeries));
+ accSeries.push(Math.round(100*attempts.reduce((a,b)=>a+b,0)/attempts.length)); if(accSeries.length>200)accSeries.shift();
+ localStorage.setItem("pt_accSeries",JSON.stringify(accSeries)); drawAccGraph();
+ const v=hard[m]||0;
+ if(missed)hard[m]=Math.min(6,v+2);
+ else if(v>0){if(v-1<=0)delete hard[m];else hard[m]=v-1;}
+ saveHard();
+}
+function updateFinger(){ $("finger").textContent=!fingersOn()?"":targetFinger?`אצבע ${targetFinger} ביד ימין`:"יד ימין · בחרו אצבע נוחה"; }
+function chooseNote(release=true){
+  shownAt=performance.now();
+  clearTimeout(pendingAdvance); correctFlash=false; missedNow=false; wrongFrames=0; seqFinished=false; seqMissed=[]; playedSlots=[];
+  buildExercise();
+  if(seqMode){
+    const previous=sequence.length?sequence[sequence.length-1]:target;
+    sequence=[]; sequenceFingers=[];
+    for(let i=0;i<seqLength();i++){
+      let idx;
+      if(isOrdered()){ singleCursor=(singleCursor+1)%exerciseNotes.length;idx=singleCursor; }
+      else {idx=mixedIndex(i?sequence[i-1]:previous);}
+      sequence.push(exerciseNotes[idx]); sequenceFingers.push(fingerFor(exerciseNotes[idx],idx));
+    }
+    seqIndex=0;target=sequence[0];targetFinger=sequenceFingers[0];
+  }else{
+    sequence=[];seqIndex=0;
+    if(isOrdered())singleCursor=(singleCursor+1)%exerciseNotes.length;
+    else singleCursor=mixedIndex(target);
+    target=exerciseNotes[singleCursor];targetFinger=fingerFor(target,singleCursor);
+  }
+  updateFinger();hintBtn.textContent="רמז: שם התו";
+  stable=0;releaseFrames=0;transitioning=false;waitingForRelease=release;
+  updateScore();draw();
+  if(active) status.textContent=release?"שחררו את הקליד, ואז נגנו את התו המסומן":"נגנו את התו המסומן";
+  else status.textContent="אפשר לשמוע ולראות הדגמה, ואז להפעיל מיקרופון לתרגול";
+}
+
+function optionsChanged(){
+  if(!opt.o1&&!opt.o2){opt.o1=true;}
+  noteBag=[];recentIdx=[];singleCursor=-1;save();refreshModeLabels();chooseNote(active);
+  if(!active) status.textContent="התרגיל הוחלף. אפשר לראות הדגמה ואז לתרגל בקצב שלכם";
+}
+function toggleMode(){
+  seqMode=!seqMode; noteBag=[];recentIdx=[]; singleCursor=-1; save(); refreshModeLabels(); chooseNote(active);
+  if(!active) status.textContent=seqMode?"מצב רצף: נגנו את התווים אחד אחרי השני":"מצב תו בודד. הפעילו מיקרופון כדי לתרגל";
+}
+// Rolling sequence: after each correct note, the note played ROLL_KEEP steps
+// ago (still shown, colored green/pink) is replaced by a new one that goes last
+// in play order, so the staff never waits for a page to finish.
+function replaceSlot(j){
+  const N=sequence.length, prev=sequence[(j-1+N)%N];
+  let idx;
+  if(isOrdered()){ singleCursor=(singleCursor+1)%exerciseNotes.length; idx=singleCursor; }
+  else idx=mixedIndex(prev);
+  sequence[j]=exerciseNotes[idx]; sequenceFingers[j]=fingerFor(exerciseNotes[idx],idx);
+  playedSlots[j]=false; seqMissed[j]=false;
+}
+function rollForward(){
+  const N=sequence.length;
+  correct++; if(seqIndex===N-1)seqDone++; save(); updateScore();
+  const j=(seqIndex-ROLL_KEEP+N)%N;
+  if(j!==seqIndex&&playedSlots[j])replaceSlot(j);
+  correctFlash=false; shownAt=performance.now();
+  seqIndex=(seqIndex+1)%N; missedNow=false; wrongFrames=0;
+  target=sequence[seqIndex]; targetFinger=sequenceFingers[seqIndex]; updateFinger();
+  hintBtn.textContent="רמז: שם התו";
+  stable=0; releaseFrames=0; transitioning=false; waitingForRelease=true;
+  status.textContent="נכון! ✓";
+  draw();
+}
+function advanceSequence(){
+  shownAt=performance.now(); seqIndex++; missedNow=false; wrongFrames=0; target=sequence[seqIndex];targetFinger=sequenceFingers[seqIndex];updateFinger();
+  hintBtn.textContent="רמז: שם התו";
+  stable=0; releaseFrames=0; transitioning=false; waitingForRelease=true;
+  status.textContent="שחררו את הקליד, ואז נגנו את התו הבא ברצף";
+  draw();
+}
+function handlePitch(hz){
+  if(performance.now()<mutedUntil){stable=0;return;}
+  if(calibrating){calibrateStep(hz);return;}
+  if(transitioning) return;
+  if(hz==null){
+    stable=0; releaseFrames++;
+    otherNote=null;otherCount=0;
+    if(releaseFrames>=4 && waitingForRelease){
+      waitingForRelease=false; ignoreLastUntil=performance.now()+500;
+      status.textContent=seqMode?`נגנו את התו ${noteName(target)}`:"נגנו את התו שעל החמשה";
+    }
+    return;
+  }
+  const exact=69+12*Math.log2(hz/440)-calib, played=Math.round(exact);
+  heard.textContent=`נשמע: ${noteName(played)} · ${latinName(played)} · ${Math.round(hz)} Hz`;
+  if(waitingForRelease){
+    // The previous note may still be ringing. Only a new onset releases the
+    // wait: silence, or a different pitch held for 3 frames. Never judge the
+    // ringing note against the next target.
+    if(played===lastNote){releaseFrames=0;otherNote=null;otherCount=0;return;}
+    if(played===otherNote)otherCount++;else{otherNote=played;otherCount=1;}
+    if(otherCount>=3){
+      waitingForRelease=false;otherNote=null;otherCount=0;releaseFrames=0;
+      stable=(played===target)?2:0; wrongFrames=(played===target)?0:1;
+    }
+    return;
+  }
+  if(played===lastNote&&played!==target&&performance.now()<ignoreLastUntil)return;
+  releaseFrames=0;
+  if(played===target)wrongFrames=0;
+  if(played===target && Math.abs(exact-target)<0.38){
+    stable++;
+    if(stable>=3){
+      transitioning=true; correctFlash=true; lastNote=target; otherNote=null; otherCount=0; recordResult(target,missedNow);
+      const wasMissed=missedNow; seqMissed[seqIndex]=wasMissed; if(seqMode)playedSlots[seqIndex]=true; draw();
+      if(seqMode&&rolling){ rollForward(); }
+      else if(seqMode){
+        if(seqIndex<sequence.length-1){
+          status.textContent="נכון! ✓ ממשיכים לתו הבא ברצף";
+        correctFlash=false; advanceSequence();
+        } else {
+          correct++; seqDone++; save(); updateScore();
+          status.textContent="כל הכבוד! רצף שלם ✓";
+          if(seqMissed.some(Boolean)){seqFinished=true;correctFlash=false;draw();pendingAdvance=setTimeout(()=>chooseNote(true),900);}
+          else{correctFlash=false; chooseNote(true);}
+        }
+      } else {
+        correct++; save(); updateScore();
+        status.textContent="נכון! ✓";
+        if(wasMissed){pendingAdvance=setTimeout(()=>chooseNote(true),700);}
+        else{correctFlash=false; chooseNote(true);}
+      }
+    }
+  } else {
+    stable=0; if(++wrongFrames>=2){missedNow=true;wrongFeedback();wrongFrames=-6;}
+    if(((played-target)%12===0)&&played!==target){status.textContent=played>target?"זה התו הנכון, אבל באוקטבה גבוהה מדי. נגנו באוקטבה של דו האמצעי":"זה התו הנכון, אבל באוקטבה נמוכה מדי. נגנו באוקטבה של דו האמצעי";return;}
+    status.textContent=seqMode?`עוד ניסיון. נגנו את התו ${noteName(target)}`:"עוד ניסיון. נגנו את התו שעל החמשה";
+  }
+}
+
+// ---- YIN pitch detection (same algorithm as the native app) ----
+function detectPitch(pcm,sr){
+  let mean=0; for(let i=0;i<pcm.length;i++) mean+=pcm[i]; mean/=pcm.length;
+  const data=new Float64Array(pcm.length); let energy=0;
+  for(let i=0;i<pcm.length;i++){ data[i]=pcm[i]-mean; energy+=data[i]*data[i]; }
+  if(Math.sqrt(energy/data.length)<0.008) return null;
+  const minLag=Math.floor(sr/1200), maxLag=Math.floor(sr/180), n=2048;
+  const diff=new Float64Array(maxLag+1);
+  for(let t=1;t<=maxLag;t++){ let s=0; for(let i=0;i<n;i++){ const d=data[i]-data[i+t]; s+=d*d; } diff[t]=s; }
+  const norm=new Float64Array(maxLag+1); norm[0]=1; let cum=0;
+  for(let t=1;t<=maxLag;t++){ cum+=diff[t]; norm[t]=cum>0?diff[t]*t/cum:1; }
+  let lag=minLag;
+  while(lag<maxLag){
+    if(norm[lag]<0.15){
+      while(lag+1<=maxLag && norm[lag+1]<norm[lag]) lag++;
+      const a=norm[Math.max(1,lag-1)], b=norm[lag], c=norm[Math.min(maxLag,lag+1)];
+      const den=2*(2*b-c-a), shift=Math.abs(den)>1e-12?(c-a)/den:0;
+      const freq=sr/(lag+Math.max(-1,Math.min(1,shift)));
+      return (freq>=180&&freq<=1200)?freq:null;
+    }
+    lag++;
+  }
+  return null;
+}
+
+// ---- keep the screen awake while the app is in use ----
+// Screen Wake Lock API (Chrome/Edge on Android, Safari 16.4+). Held whenever
+// the page is visible, released by the browser when it is hidden or closed.
+// Where the API is missing the app simply works as before.
+let wakeLock=null;
+async function holdWakeLock(){
+  if(!("wakeLock" in navigator)||document.hidden||wakeLock) return;
+  try{
+    wakeLock=await navigator.wakeLock.request("screen");
+    wakeLock.addEventListener("release",()=>{wakeLock=null;});
+  }catch(e){ wakeLock=null; }
+}
+holdWakeLock();
+document.addEventListener("pointerdown",holdWakeLock);
+document.addEventListener("keydown",holdWakeLock);
+
+// ---- microphone ----
+let audioCtx=null, analyser=null, micStream=null, timer=null, buf=null;
+async function startListening(){
+  if(active||demonstrating) return;
+  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){
+    status.textContent="הדפדפן אינו תומך במיקרופון. פתחו בדפדפן מעודכן"; return;
+  }
+  try{
+    micStream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false,channelCount:1}});
+  }catch(e){
+    status.textContent="נדרשת הרשאת מיקרופון. אפשר לאשר אותה ולנסות שוב"; return;
+  }
+  try{
+    audioCtx=new (window.AudioContext||window.webkitAudioContext)();
+    const src=audioCtx.createMediaStreamSource(micStream);
+    analyser=audioCtx.createAnalyser(); analyser.fftSize=16384;
+    src.connect(analyser);
+    buf=new Float32Array(4096);
+    active=true;
+    micBtn.textContent="עצירת מיקרופון"; micBtn.classList.add("on");
+    status.textContent=seqMode?"נגנו את התווים שעל החמשה, אחד אחרי השני":"נגנו את התו שעל החמשה";
+    waitingForRelease=false; stable=0;
+    // Faster recognition, same accuracy: poll every 80 ms and run YIN on the
+    // freshest 2400 samples (YIN reads its first ~2314), instead of every
+    // 150 ms over a window ending ~120 ms in the past. Still 3 consecutive
+    // matching frames and the same 0.38-semitone tolerance before a confirm,
+    // so the sustained-correct requirement drops ~450 ms to ~240 ms.
+    timer=setInterval(()=>{
+      if(!active) return;
+      analyser.getFloatTimeDomainData(buf);
+      handlePitch(detectPitch(buf.subarray(buf.length-2400),audioCtx.sampleRate));
+    },80);
+  }catch(e){
+    stopListening();
+    status.textContent="לא ניתן להפעיל מיקרופון. נסו שוב";
+  }
+}
+function stopListening(){
+  active=false; calibrating=false; $("calib").textContent="כיוון אוקטבה אמצעית";
+  if(timer){ clearInterval(timer); timer=null; }
+  if(micStream){ micStream.getTracks().forEach(t=>t.stop()); micStream=null; }
+  if(audioCtx){ audioCtx.close().catch(()=>{}); audioCtx=null; }
+  analyser=null;
+  micBtn.textContent="הפעלת מיקרופון"; micBtn.classList.remove("on");
+  if(status.textContent!=="לחצו על הפעלת המיקרופון כדי להתחיל") status.textContent="המיקרופון עצור";
+  clearTimeout(pendingAdvance); correctFlash=false; stable=0; transitioning=false; draw();
+}
+micBtn.addEventListener("click",()=>{ active?stopListening():startListening(); });
+hintBtn.addEventListener("click",()=>{ hintBtn.textContent=`${noteName(target)} · ${latinName(target)}`; });
+modeBtn.addEventListener("click",toggleMode);
+$("calib").addEventListener("click",async()=>{
+ if(calibrating){calibrating=false;$("calib").textContent="כיוון אוקטבה אמצעית";status.textContent="הכיוון בוטל";return;}
+ if(demonstrating)return;
+ if(!active)await startListening();
+ if(!active)return;
+ calibrating=true;calibSamples=[];$("calib").textContent="ביטול כיוון";
+ status.textContent="נגנו עכשיו את דו האמצעי והחזיקו קצת";
+});
+$("calibReset").addEventListener("click",()=>{calib=0;localStorage.removeItem("pt_calib");calibrating=false;$("calib").textContent="כיוון אוקטבה אמצעית";refreshCalibLabel();status.textContent="הכיוון אופס ל-262 Hz";});
+refreshCalibLabel();
+const showFingersBox=$("showFingers");
+showFingersBox.checked=showFingers;
+showFingersBox.addEventListener("change",()=>{ showFingers=showFingersBox.checked; localStorage.setItem("pt_show_fingers",showFingers?"1":"0"); updateFinger(); draw(); });
+document.addEventListener("visibilitychange",()=>{ if(document.hidden&&active) {calibrating=false;stopListening();} else if(!document.hidden) holdWakeLock(); });
+
+// A tap plays a synthesized reference, not a recording or an upload.
+async function demonstrate(){
+ if(demonstrating)return;
+ stopListening();demonstrating=true;
+ const controls=[...document.querySelectorAll("button,select")];controls.forEach(b=>b.disabled=true);
+ const saved={target,targetFinger,sequence,seqIndex};let ctx;
+ try{
+  ctx=new (window.AudioContext||window.webkitAudioContext)();await ctx.resume();
+  const p=pool(), notes=p.notes;sequence=[];
+  for(let i=0;i<notes.length;i++){
+   target=notes[i];targetFinger=p.fingers&&!opt.flat&&!opt.sharp?p.fingers[i]:null;updateFinger();draw();
+   status.textContent=`הדגמה: ${noteName(target)} · ${latinName(target)}`+(targetFinger?` · אצבע ${targetFinger}`:"");
+   const osc=ctx.createOscillator(),gain=ctx.createGain();osc.type="triangle";
+   osc.frequency.value=440*Math.pow(2,(target-69)/12);
+   gain.gain.setValueAtTime(0,ctx.currentTime);gain.gain.linearRampToValueAtTime(.16,ctx.currentTime+.02);gain.gain.exponentialRampToValueAtTime(.001,ctx.currentTime+.55);
+   osc.connect(gain);gain.connect(ctx.destination);osc.start();osc.stop(ctx.currentTime+.6);
+   await new Promise(resolve=>setTimeout(resolve,950));
+  }
+  status.textContent="ההדגמה הסתיימה. הפעילו מיקרופון ותרגלו לאט, כמה פעמים שצריך";
+ }catch(e){status.textContent="לא ניתן להשמיע כרגע. נסו שוב בלחיצה על הדגמה";}
+ finally{
+  if(ctx)await ctx.close().catch(()=>{});
+  ({target,targetFinger,sequence,seqIndex}=saved);demonstrating=false;controls.forEach(b=>b.disabled=false);updateFinger();draw();
+ }
+}
+$("demo").addEventListener("click",demonstrate);
+
+// ---- staff rendering (ported from the native StaffView) ----
+const WHITE=[60,62,64,65,67,69,71,72,74,76,77,79,81,83,84];
+function draw(){
+  const dpr=window.devicePixelRatio||1;
+  const w=cv.clientWidth, h=cv.clientHeight;
+  if(!w||!h) return;
+  if(cv.width!==Math.round(w*dpr)||cv.height!==Math.round(h*dpr)){ cv.width=Math.round(w*dpr); cv.height=Math.round(h*dpr); }
+  const c=cv.getContext("2d");
+  c.setTransform(dpr,0,0,dpr,0,0);
+  c.clearRect(0,0,w,h);
+  const gap=Math.min(w/16,h/13,sequence.length>1?w/(5.3+seqSpacing()*(sequence.length-1)):1e9), top=(h-2*gap)/2, left=gap, right=w-gap;
+  c.strokeStyle="rgb(72,88,110)"; c.lineWidth=2; c.lineCap="round";
+  for(let i=0;i<5;i++){ c.beginPath(); c.moveTo(left,top+i*gap); c.lineTo(right,top+i*gap); c.stroke(); }
+  // Treble clef centered on the G4 line, drawn with bezier curves (no music font).
+  c.save(); c.translate(left+gap*.8,top+gap*2.4); c.scale(gap,gap);
+  c.lineWidth=.12; c.beginPath();
+  c.moveTo(.1,2.4);
+  c.bezierCurveTo(-.8,2.9,-.6,1.8,0,2.0);
+  c.bezierCurveTo(.75,2.3,.15,.4,-.05,-.7);
+  c.bezierCurveTo(-.45,-2.9,.8,-3.4,.55,-1.6);
+  c.bezierCurveTo(.4,-.6,-.8,-.2,-.65,.75);
+  c.bezierCurveTo(-.48,1.8,1.1,1.45,.9,.45);
+  c.bezierCurveTo(.7,-.3,-.3,-.1,-.2,.65);
+  c.stroke(); c.restore();
+  c.lineWidth=2;
+  function noteY(step){ return top+5*gap-step*gap/2; }
+  function drawSharp(x,y,col){
+    c.strokeStyle=col; c.lineWidth=Math.max(1.5,gap*.09);
+    const sw=gap*.30, sh=gap*.85;
+    c.beginPath();
+    c.moveTo(x-sw,y-sh/2); c.lineTo(x-sw+gap*.07,y+sh/2);
+    c.moveTo(x+sw,y-sh/2); c.lineTo(x+sw+gap*.07,y+sh/2);
+    c.moveTo(x-sw*1.7,y-sh*.10); c.lineTo(x+sw*1.7,y-sh*.32);
+    c.moveTo(x-sw*1.7,y+sh*.32); c.lineTo(x+sw*1.7,y+sh*.10);
+    c.stroke(); c.lineWidth=2;
+  }
+  function drawNote(m,x,col,finger){
+    let step=WHITE.indexOf(m), sharp=false;
+    const flat=usesFlat(m);
+    if(flat)step=WHITE.indexOf(m+1);
+    if(step<0){ step=WHITE.indexOf(m-1); if(step>=0) sharp=true; else step=0; }
+    const y=noteY(step);
+    c.strokeStyle="rgb(72,88,110)";
+    c.beginPath();
+    if(step<=0){ c.moveTo(x-gap,y); c.lineTo(x+gap,y); }
+    for(let ledger=12;ledger<=step;ledger+=2){const ly=noteY(ledger);c.moveTo(x-gap,ly);c.lineTo(x+gap,ly);}
+    c.stroke();
+    if(flat){c.fillStyle=col;c.font=`${gap*1.8}px serif`;c.fillText("♭",x-gap*1.7,y+gap*.3);}
+    if(sharp) drawSharp(x-gap*.98,y,col);
+    c.fillStyle=col;
+    c.save(); c.translate(x,y); c.rotate(-18*Math.PI/180);
+    c.beginPath(); c.ellipse(0,0,gap*.65,gap*.42,0,0,2*Math.PI); c.fill();
+    c.restore();
+    c.fillStyle=col;c.font=`bold ${Math.max(14,gap)}px Arial`;c.textAlign="center";if(finger)c.fillText(String(finger),x,y+(step<6?1.8:-1.4)*gap);
+    c.strokeStyle=col;
+    const stemUp=step<6, stemX=stemUp?x+gap*.57:x-gap*.57;
+    c.beginPath(); c.moveTo(stemX,y); c.lineTo(stemX,y+(stemUp?-3.2:3.2)*gap); c.stroke();
+  }
+  if(sequence.length===0){
+    drawNote(target,w*.59+shakeOff(),correctFlash?(missedNow?PINK:"rgb(20,155,108)"):"rgb(35,96,210)",fingersOn()?targetFinger:null);
+  } else {
+    const startX=left+2.6*gap, endX=right-gap*.7;
+    const dx=sequence.length>1?(endX-startX)/(sequence.length-1):0;
+    for(let i=0;i<sequence.length;i++){
+      const x=startX+i*dx;
+      const col=(playedSlots[i]||seqFinished)?(seqMissed[i]?PINK:"rgb(120,166,150)")
+        :i===seqIndex?(correctFlash?"rgb(20,155,108)":"rgb(35,96,210)")
+        :"rgb(150,160,175)";
+      drawNote(sequence[i],i===seqIndex?x+shakeOff():x,col,fingersOn()?sequenceFingers[i]:null);
+    }
+  }
+}
+window.addEventListener("resize",draw);
+
+$("o1").addEventListener("change",()=>{opt.o1=$("o1").checked;optionsChanged();});
+$("o2").addEventListener("change",()=>{opt.o2=$("o2").checked;optionsChanged();});
+// Expanding steps: ticking a step also ticks the earlier ones, unticking
+// one also unticks the later ones.
+function stepHandler(oct){
+ const s5=$(oct+"s5"),s8=$(oct+"s8"),key=oct+"n";
+ s5.addEventListener("change",()=>{opt[key]=s5.checked?5:3;optionsChanged();});
+ s8.addEventListener("change",()=>{opt[key]=s8.checked?8:5;optionsChanged();});
+}
+stepHandler("o1");stepHandler("o2");
+$("flat").addEventListener("change",()=>{opt.flat=$("flat").checked;optionsChanged();});
+$("sharp").addEventListener("change",()=>{opt.sharp=$("sharp").checked;optionsChanged();});
+$("rolling").checked=rolling;
+$("rolling").addEventListener("change",()=>{rolling=$("rolling").checked;localStorage.setItem("pt_rolling",rolling?"1":"0");optionsChanged();});
+$("noteOrder").addEventListener("change",()=>{noteOrder=$("noteOrder").value;optionsChanged();});
+
+// ---- init ----
+refreshModeLabels();
+chooseNote(false);
+drawAccGraph();
+</script>
+</body>
+</html>
