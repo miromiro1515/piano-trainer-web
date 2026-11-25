@@ -199,6 +199,269 @@ function updateFinger(){ $("finger").textContent=!fingersOn()?"":targetFinger?`�
 function chooseNote(release=true){
   clearTimeout(pendingAdvance); correctFlash=false;
   buildExercise();
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Piano Notes Learning Free</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    background: rgb(247,249,252);
+    color: rgb(24,40,65);
+    font-family: -apple-system, "Segoe UI", Roboto, "Noto Sans Hebrew", Arial, sans-serif;
+    display: flex; justify-content: center;
+  }
+  main {
+    width: 100%; max-width: 560px; min-height: 100%;
+    display: flex; flex-direction: column;
+    padding: calc(18px + env(safe-area-inset-top)) 20px calc(14px + env(safe-area-inset-bottom));
+    text-align: center;
+  }
+  main > * { flex-shrink:0; }
+  h1 { font-size: 25px; margin: 4px 0 2px; font-weight: 600; }
+  #visits { position: fixed; bottom: 8px; left: 8px; opacity: .75; z-index: 5; }
+  #visits img { height: 20px; display: block; }
+  #subtitle { font-size: 16px; margin: 3px 0; }
+  #score { font-size: 15px; margin: 3px 0; }
+  #staffwrap { flex: 1; height: 240px; min-height: 200px; margin: 6px 0; }
+  canvas { width: 100%; height: 100%; display: block; }
+  #status { font-size: 19px; margin: 6px 0; min-height: 26px; }
+  #heard { font-size: 16px; margin: 3px 0; min-height: 22px; color: rgb(60,80,105); }
+  button {
+    width: 100%; border: 0; border-radius: 14px; margin-top: 8px;
+    font-size: 17px; font-family: inherit; color: rgb(24,40,65);
+    background: rgb(228,236,248); padding: 13px;
+  }
+  button:active { background: rgb(205,220,242); }
+  #mic { background: rgb(35,96,210); color: #fff; font-size: 18px; }
+  #mic.on { background: rgb(190,70,60); }
+  .row { display: flex; gap: 8px; }
+  .row button { flex: 1; }
+  select { width:100%; padding:10px; font:inherit; border:1px solid #b8c8de; border-radius:10px; background:white; color:inherit; }
+  #options { text-align:right; margin:8px 0 0; padding:10px 12px; background:#fff; border:1px solid #d5e0ef; border-radius:12px; }
+  #options .opt { display:flex; align-items:center; gap:10px; font-size:17px; padding:7px 0; }
+  #options .opt input { width:22px; height:22px; flex:none; }
+  #options select { margin:2px 0 6px; padding:8px; }
+  #options .sub { font-size:14px; margin:4px 0 2px; }
+  #exercise { font-size:15px; line-height:1.5; margin:8px 0; }
+  #finger { font-size:21px; font-weight:600; color:#235fd2; }
+  #finger { min-height:26px; }
+  #legend { font-size:13px; line-height:1.5; }
+  footer { font-size: 12px; color: rgb(110,125,145); margin-top: 10px; }
+</style>
+</head>
+<body>
+<main>
+  <h1 dir="ltr">Piano Notes Learning Free</h1>
+  <div id="subtitle"></div>
+  <div id="score"></div>
+  <div id="options">
+    <label class="opt"><input type="checkbox" id="o1"> אוקטבה ראשונה (דו עד דו)</label>
+    <label class="opt"><input type="checkbox" id="o2"> אוקטבה שנייה</label>
+    <div id="o2rangeWrap" hidden><div class="sub">כמה תווים מהאוקטבה השנייה</div>
+    <select id="o2range"><option value="3">דו רה מי</option><option value="5">עד סול</option><option value="8">כל האוקטבה</option></select></div>
+    <label class="opt"><input type="checkbox" id="flat"> במולים ♭</label>
+    <label class="opt"><input type="checkbox" id="sharp"> דיאזים ♯</label>
+    <label class="opt"><input type="checkbox" id="showFingers"> מספרי אצבעות</label>
+    <div class="sub">סדר התווים</div>
+    <select id="noteOrder"><option value="mixed">מעורבב · קפיצות בין התווים</option><option value="scale">לפי הסדר · עלייה וירידה</option></select>
+  </div>
+  <div id="exercise"></div>
+  <div class="row"><button id="calib">כיוון אוקטבה אמצעית</button><button id="calibReset">איפוס כיוון</button></div>
+  <div id="calibInfo" style="font-size:13px;margin:4px 0"></div>
+  <div id="finger"></div>
+  <div id="legend">יד ימין: 1 אגודל · 2 מורה · 3 אמה · 4 קמיצה · 5 זרת<br>המספרים מתאימים לתרגיל ולמנח היד, לא לכל הופעה של אותו תו. המיקרופון בודק צליל, לא אצבעות.</div>
+  <div id="staffwrap"><canvas id="staff"></canvas></div>
+  <div id="status">לחצו על הפעלת המיקרופון כדי להתחיל</div>
+  <div id="heard">נגנו תו אחד בכל פעם, בלי אקורד או דוושת השהיה</div>
+  <button id="demo">לפני שמנגנים: הדגמת התווים והאצבעות</button>
+  <button id="mic">הפעלת מיקרופון</button>
+  <button id="hint">רמז: שם התו</button>
+  <button id="mode"></button>
+  <footer>הצליל מעובד בדפדפן בלבד. אין הקלטה או העלאה לרשת. ההתקדמות נשמרת במכשיר זה. גרסה 3.4.</footer>
+</main>
+<div id="visits"><img src="https://visitor-badge.laobi.icu/badge?page_id=miromiro1515.piano-trainer-web&left_text=%D7%91%D7%99%D7%A7%D7%95%D7%A8%D7%99%D7%9D" alt="" onerror="this.parentNode.style.display='none'"></div>
+<script>
+"use strict";
+// ---- training model (ported from the native app) ----
+const NAMES=["דו","דו דיאז","רה","רה דיאז","מי","פה","פה דיאז","סול","סול דיאז","לה","לה דיאז","סי"];
+const LATIN=["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
+const WHITE_O1=[60,62,64,65,67,69,71,72], WHITE_O2=[72,74,76,77,79,81,83,84];
+const FULL_FINGERS=[1,2,3,1,2,3,4,5];
+const BLACK_PC=[1,3,6,8,10];
+function ls(k,d){const v=localStorage.getItem(k);return v===null?d:v;}
+let opt={o1:ls("pt_o1","1")==="1",o2:ls("pt_o2","0")==="1",o2n:[3,5,8].includes(+ls("pt_o2n","3"))?+ls("pt_o2n","3"):3,flat:ls("pt_flat","0")==="1",sharp:ls("pt_sharp","0")==="1"};
+if(!opt.o1&&!opt.o2)opt.o1=true;
+// Practice pool from the checkboxes. Fingers only when a fixed hand position exists.
+function pool(){
+ let white=[];
+ if(opt.o1)white=white.concat(WHITE_O1);
+ if(opt.o2)white=white.concat(WHITE_O2.slice(0,opt.o2n));
+ white=[...new Set(white)].sort((a,b)=>a-b);
+ const notes=white.slice();
+ if(opt.flat||opt.sharp){
+  for(let m=white[0];m<=white[white.length-1];m++){if(BLACK_PC.includes(m%12))notes.push(m);}
+  notes.sort((a,b)=>a-b);
+ }
+ let fingers=null;
+ if(!opt.flat&&!opt.sharp&&!(opt.o1&&opt.o2)){
+  const ordered=noteOrder==="scale";
+  if(opt.o1)fingers=ordered?FULL_FINGERS:null;
+  else fingers=(ordered||opt.o2n<8)?(opt.o2n===3?[1,2,3]:opt.o2n===5?[1,2,3,4,5]:FULL_FINGERS):null;
+ }
+ return {notes,fingers};
+}
+function describe(){
+ const parts=[];
+ if(opt.o1)parts.push("אוקטבה ראשונה");
+ if(opt.o2)parts.push("אוקטבה שנייה ("+({3:"דו רה מי",5:"עד סול",8:"כולה"}[opt.o2n])+")");
+ if(opt.flat)parts.push("במולים");
+ if(opt.sharp)parts.push("דיאזים");
+ return parts.join(" + ");
+}
+const $=id=>document.getElementById(id);
+const subtitle=$("subtitle"), scoreEl=$("score"), status=$("status"), heard=$("heard");
+const micBtn=$("mic"), hintBtn=$("hint"), modeBtn=$("mode");
+const cv=$("staff");
+
+// Existing totals, mode, and legacy level are retained. This revision starts at
+// three upper notes as requested; future visits restore the exact new lesson.
+let correct=+localStorage.getItem("pt_correct")||0;
+let seqDone=+localStorage.getItem("pt_seqDone")||0;
+let seqMode=localStorage.getItem("pt_seqMode")==="1";
+let target=60, stable=0, releaseFrames=0, waitingForRelease=false, transitioning=false;
+let sequence=[], seqIndex=0, correctFlash=false, active=false;
+let exerciseNotes=[], exerciseFingers=[], singleCursor=-1, pendingAdvance=null, demonstrating=false;
+
+function clampI(v,a,b){v=Math.round(isFinite(v)?v:a);return Math.max(a,Math.min(b,v));}
+let noteOrder=localStorage.getItem("pt_first_order")==="scale"?"scale":"mixed";
+const FLAT_NAMES={1:"רה במול",3:"מי במול",6:"סול במול",8:"לה במול",10:"סי במול"};
+const FLAT_LATIN={1:"Db",3:"Eb",6:"Gb",8:"Ab",10:"Bb"};
+function isOrdered(){return noteOrder==="scale";}
+function usesFlat(m){
+ const pc=((m%12)+12)%12;
+ if(!BLACK_PC.includes(pc))return false;
+ if(opt.flat&&!opt.sharp)return true;
+ return opt.flat&&opt.sharp&&[3,8,10].includes(pc);
+}
+function noteName(m){const pc=((m%12)+12)%12;return usesFlat(m)?FLAT_NAMES[pc]:NAMES[pc];}
+function latinName(m){const pc=((m%12)+12)%12;return (usesFlat(m)?FLAT_LATIN[pc]:LATIN[pc])+(Math.floor(m/12)-1);}
+function seqLength(){return 5;}
+function hasFingering(){return pool().fingers!==null;}
+function mixedIndex(previous){
+ if(!noteBag.length){
+  noteBag=[];
+  exerciseNotes.forEach((n,i)=>{noteBag.push(i);const extra=Math.ceil((hard[n]||0)/2);for(let k=0;k<extra;k++)noteBag.push(i);});
+  for(let i=noteBag.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[noteBag[i],noteBag[j]]=[noteBag[j],noteBag[i]];}
+ }
+ for(let t=0;t<20&&exerciseNotes[noteBag[noteBag.length-1]]===previous&&noteBag.length>1;t++){const j=Math.floor(Math.random()*(noteBag.length-1));[noteBag[j],noteBag[noteBag.length-1]]=[noteBag[noteBag.length-1],noteBag[j]];}
+ return noteBag.pop();
+}
+function save(){
+  localStorage.setItem("pt_first_order",noteOrder);
+  localStorage.setItem("pt_o1",opt.o1?"1":"0");localStorage.setItem("pt_o2",opt.o2?"1":"0");
+  localStorage.setItem("pt_o2n",opt.o2n);localStorage.setItem("pt_flat",opt.flat?"1":"0");localStorage.setItem("pt_sharp",opt.sharp?"1":"0");
+  localStorage.setItem("pt_correct",correct);
+  localStorage.setItem("pt_seqDone",seqDone);
+  localStorage.setItem("pt_seqMode",seqMode?"1":"0");
+}
+function refreshModeLabels(){
+  const base=seqMode?`יד ימין · מפתח סול · רצף של ${seqLength()} תווים`:"יד ימין · מפתח סול · תו אחד בכל פעם";
+  subtitle.textContent=base+" · "+describe();
+  $("o1").checked=opt.o1;$("o2").checked=opt.o2;$("flat").checked=opt.flat;$("sharp").checked=opt.sharp;
+  $("o2rangeWrap").hidden=!opt.o2;$("o2range").value=String(opt.o2n);$("noteOrder").value=noteOrder;
+  $("legend").hidden=!hasFingering();
+  $("demo").textContent=hasFingering()?"לפני שמנגנים: הדגמת התווים והאצבעות":"לפני שמנגנים: הדגמת הצלילים";
+  $("exercise").textContent=(isOrdered()?"התווים לפי הסדר בעלייה ובירידה. ":"התווים מעורבבים, ללא חזרה מיידית. ")+(hasFingering()?"המספרים לפי מנח היד הקבוע. ":"אין מספור אצבעות קבוע לבחירה הזו, בחרו אצבע נוחה. ")+"מסמנים או מבטלים תיבות כדי לשנות את התרגיל.";
+  modeBtn.textContent=seqMode?"מעבר לתרגול תו בודד":"מעבר לתרגול רצף תווים";
+}
+function updateScore(){
+  scoreEl.textContent=(seqMode?`${seqDone} רצפים הושלמו`:`${correct} תווים נכונים`)+" · "+accuracyText();
+}
+function buildExercise(){
+ const p=pool(), notes=p.notes;
+ if(isOrdered()){
+   exerciseNotes=notes.concat(notes.slice(0,-1).reverse());
+   exerciseFingers=p.fingers?p.fingers.concat(p.fingers.slice(0,-1).reverse()):[];
+ }else{exerciseNotes=notes;exerciseFingers=p.fingers||[];}
+}
+function fingerFor(m,index){
+ const p=pool();
+ if(!p.fingers)return null;
+ return isOrdered()?exerciseFingers[index]:p.fingers[p.notes.indexOf(m)];
+}
+let sequenceFingers=[], targetFinger=1;
+// Finger numbers can be hidden so practice trains note reading instead of
+// following finger cues. Hidden by default; the demo still shows them.
+let showFingers=localStorage.getItem("pt_show_fingers")==="1";
+function fingersOn(){ return showFingers||demonstrating; }
+let noteBag=[];
+// Difficult notes: a note missed on its first try is drawn pink and gets a
+// score; the score drops with each clean success and the note leaves the
+// extra-practice pool at 0. Used only in mixed order (ordered keeps the scale).
+const PINK="rgb(226,84,130)";
+let hard={};try{hard=JSON.parse(localStorage.getItem("pt_hard")||"{}")||{};}catch(e){hard={};}
+// Calibration: semitone offset between the instrument and standard pitch
+// (middle C = C4 = 261.63 Hz, MIDI 60). Default 0. Stored on this device only.
+let calib=+localStorage.getItem("pt_calib")||0, calibrating=false, calibSamples=[];
+function calibrateStep(hz){
+ if(hz==null){calibSamples=[];return;}
+ const raw=69+12*Math.log2(hz/440);
+ calibSamples.push(raw); if(calibSamples.length>6)calibSamples.shift();
+ if(calibSamples.length<6)return;
+ const mn=Math.min(...calibSamples),mx=Math.max(...calibSamples);
+ if(mx-mn>0.35)return;
+ const med=[...calibSamples].sort((a,b)=>a-b)[3], off=med-60;
+ if(Math.abs(off)>1.5){status.textContent=`נשמע ${Math.round(hz)} Hz, רחוק מדו האמצעי (כ-262 Hz). נגנו את דו האמצעי`;calibSamples=[];return;}
+ calib=off; localStorage.setItem("pt_calib",String(calib)); calibrating=false; calibSamples=[];
+ $("calib").textContent="כיוון אוקטבה אמצעית"; refreshCalibLabel();
+ status.textContent=`כוון! דו אמצעי נשמע ${Math.round(hz)} Hz, זו נקודת הייחוס`;
+ waitingForRelease=true; releaseFrames=0; stable=0;
+}
+function refreshCalibLabel(){ $("calibInfo").textContent=calib===0?"כיוון: ברירת מחדל (דו אמצעי = 262 Hz)":`כיוון אישי: דו אמצעי = ${Math.round(261.63*Math.pow(2,calib/12))} Hz`; }
+// Wrong-note feedback: a soft low beep (below the 180 Hz detection range, plus a
+// short input mute) and a brief shake of the target note.
+let mutedUntil=0, lastBeep=0, shakeStart=0;
+function wrongFeedback(){
+ const now=performance.now();
+ if(now-lastBeep<900)return; lastBeep=now;
+ shakeStart=now; requestAnimationFrame(shakeTick);
+ try{
+  if(audioCtx){
+   mutedUntil=now+450;
+   const o=audioCtx.createOscillator(),g=audioCtx.createGain(),t=audioCtx.currentTime;
+   o.type="sine"; o.frequency.value=130;
+   g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(.06,t+.02); g.gain.exponentialRampToValueAtTime(.001,t+.18);
+   o.connect(g); g.connect(audioCtx.destination); o.start(t); o.stop(t+.2);
+  }
+ }catch(e){}
+}
+function shakeTick(){ draw(); if(performance.now()-shakeStart<320)requestAnimationFrame(shakeTick); }
+function shakeOff(){ const d=performance.now()-shakeStart; return d<320?Math.sin(d/320*Math.PI*6)*(1-d/320)*10:0; }
+let missedNow=false, wrongFrames=0, seqMissed=[], seqFinished=false;
+function saveHard(){localStorage.setItem("pt_hard",JSON.stringify(hard));}
+// Accuracy = share of notes got right on the first try, over the last 50
+// attempts (rolling, saved on this device, never resets by itself).
+let attempts=[];try{attempts=JSON.parse(localStorage.getItem("pt_attempts")||"[]")||[];}catch(e){attempts=[];}
+function accuracyText(){
+ if(!attempts.length)return "דיוק: —";
+ const ok=attempts.reduce((a,b)=>a+b,0);
+ return `דיוק: ${Math.round(100*ok/attempts.length)}% (${attempts.length} ניסיונות אחרונים)`;
+}
+function recordResult(m,missed){
+ attempts.push(missed?0:1); if(attempts.length>50)attempts.shift();
+ localStorage.setItem("pt_attempts",JSON.stringify(attempts));
+ const v=hard[m]||0;
+ if(missed)hard[m]=Math.min(6,v+2);
+ else if(v>0){if(v-1<=0)delete hard[m];else hard[m]=v-1;}
+ saveHard();
+}
+function updateFinger(){ $("finger").textContent=!fingersOn()?"":targetFinger?`אצבע ${targetFinger} ביד ימין`:"יד ימין · בחרו אצבע נוחה"; }
+function chooseNote(release=true){
+  clearTimeout(pendingAdvance); correctFlash=false; missedNow=false; wrongFrames=0; seqFinished=false; seqMissed=[];
+  buildExercise();
   if(seqMode){
     const previous=sequence.length?sequence[sequence.length-1]:target;
     sequence=[]; sequenceFingers=[];
@@ -232,13 +495,15 @@ function toggleMode(){
   if(!active) status.textContent=seqMode?"מצב רצף: נגנו את התווים אחד אחרי השני":"מצב תו בודד. הפעילו מיקרופון כדי לתרגל";
 }
 function advanceSequence(){
-  seqIndex++; target=sequence[seqIndex];targetFinger=sequenceFingers[seqIndex];updateFinger();
+  seqIndex++; missedNow=false; wrongFrames=0; target=sequence[seqIndex];targetFinger=sequenceFingers[seqIndex];updateFinger();
   hintBtn.textContent="רמז: שם התו";
   stable=0; releaseFrames=0; transitioning=false; waitingForRelease=true;
   status.textContent="שחררו את הקליד, ואז נגנו את התו הבא ברצף";
   draw();
 }
 function handlePitch(hz){
+  if(performance.now()<mutedUntil){stable=0;return;}
+  if(calibrating){calibrateStep(hz);return;}
   if(transitioning) return;
   if(hz==null){
     stable=0; releaseFrames++;
@@ -248,17 +513,19 @@ function handlePitch(hz){
     }
     return;
   }
-  const exact=69+12*Math.log2(hz/440), played=Math.round(exact);
+  const exact=69+12*Math.log2(hz/440)-calib, played=Math.round(exact);
   heard.textContent=`נשמע: ${noteName(played)} · ${latinName(played)} · ${Math.round(hz)} Hz`;
   if(waitingForRelease){
     if(played!==target){ releaseFrames++; if(releaseFrames>=3) waitingForRelease=false; }
     return;
   }
   releaseFrames=0;
+  if(played===target)wrongFrames=0;
   if(played===target && Math.abs(exact-target)<0.38){
     stable++;
     if(stable>=3){
-      transitioning=true; correctFlash=true; draw();
+      transitioning=true; correctFlash=true; recordResult(target,missedNow);
+      const wasMissed=missedNow; seqMissed[seqIndex]=wasMissed; draw();
       if(seqMode){
         if(seqIndex<sequence.length-1){
           status.textContent="נכון! ✓ ממשיכים לתו הבא ברצף";
@@ -266,16 +533,19 @@ function handlePitch(hz){
         } else {
           correct++; seqDone++; save(); updateScore();
           status.textContent="כל הכבוד! רצף שלם ✓";
-        correctFlash=false; chooseNote(true);
+          if(seqMissed.some(Boolean)){seqFinished=true;correctFlash=false;draw();pendingAdvance=setTimeout(()=>chooseNote(true),900);}
+          else{correctFlash=false; chooseNote(true);}
         }
       } else {
         correct++; save(); updateScore();
         status.textContent="נכון! ✓";
-        correctFlash=false; chooseNote(true);
+        if(wasMissed){pendingAdvance=setTimeout(()=>chooseNote(true),700);}
+        else{correctFlash=false; chooseNote(true);}
       }
     }
   } else {
-    stable=0;
+    stable=0; if(++wrongFrames>=2){missedNow=true;wrongFeedback();wrongFrames=-6;}
+    if(((played-target)%12===0)&&played!==target){status.textContent=played>target?"זה התו הנכון, אבל באוקטבה גבוהה מדי. נגנו באוקטבה של דו האמצעי":"זה התו הנכון, אבל באוקטבה נמוכה מדי. נגנו באוקטבה של דו האמצעי";return;}
     status.textContent=seqMode?`עוד ניסיון. נגנו את התו ${noteName(target)}`:"עוד ניסיון. נגנו את התו שעל החמשה";
   }
 }
@@ -359,7 +629,7 @@ async function startListening(){
   }
 }
 function stopListening(){
-  active=false;
+  active=false; calibrating=false; $("calib").textContent="כיוון אוקטבה אמצעית";
   if(timer){ clearInterval(timer); timer=null; }
   if(micStream){ micStream.getTracks().forEach(t=>t.stop()); micStream=null; }
   if(audioCtx){ audioCtx.close().catch(()=>{}); audioCtx=null; }
@@ -371,10 +641,20 @@ function stopListening(){
 micBtn.addEventListener("click",()=>{ active?stopListening():startListening(); });
 hintBtn.addEventListener("click",()=>{ hintBtn.textContent=`${noteName(target)} · ${latinName(target)}`; });
 modeBtn.addEventListener("click",toggleMode);
+$("calib").addEventListener("click",async()=>{
+ if(calibrating){calibrating=false;$("calib").textContent="כיוון אוקטבה אמצעית";status.textContent="הכיוון בוטל";return;}
+ if(demonstrating)return;
+ if(!active)await startListening();
+ if(!active)return;
+ calibrating=true;calibSamples=[];$("calib").textContent="ביטול כיוון";
+ status.textContent="נגנו עכשיו את דו האמצעי והחזיקו קצת";
+});
+$("calibReset").addEventListener("click",()=>{calib=0;localStorage.removeItem("pt_calib");calibrating=false;$("calib").textContent="כיוון אוקטבה אמצעית";refreshCalibLabel();status.textContent="הכיוון אופס ל-262 Hz";});
+refreshCalibLabel();
 const showFingersBox=$("showFingers");
 showFingersBox.checked=showFingers;
 showFingersBox.addEventListener("change",()=>{ showFingers=showFingersBox.checked; localStorage.setItem("pt_show_fingers",showFingers?"1":"0"); updateFinger(); draw(); });
-document.addEventListener("visibilitychange",()=>{ if(document.hidden&&active) stopListening(); else if(!document.hidden) holdWakeLock(); });
+document.addEventListener("visibilitychange",()=>{ if(document.hidden&&active) {calibrating=false;stopListening();} else if(!document.hidden) holdWakeLock(); });
 
 // A tap plays a synthesized reference, not a recording or an upload.
 async function demonstrate(){
@@ -462,16 +742,16 @@ function draw(){
     c.beginPath(); c.moveTo(stemX,y); c.lineTo(stemX,y+(stemUp?-3.2:3.2)*gap); c.stroke();
   }
   if(sequence.length===0){
-    drawNote(target,w*.59,correctFlash?"rgb(20,155,108)":"rgb(35,96,210)",fingersOn()?targetFinger:null);
+    drawNote(target,w*.59+shakeOff(),correctFlash?(missedNow?PINK:"rgb(20,155,108)"):"rgb(35,96,210)",fingersOn()?targetFinger:null);
   } else {
     const startX=left+2.6*gap, endX=right-gap*.7;
     const dx=sequence.length>1?(endX-startX)/(sequence.length-1):0;
     for(let i=0;i<sequence.length;i++){
       const x=startX+i*dx;
-      const col=i<seqIndex?"rgb(120,166,150)"
+      const col=(i<seqIndex||seqFinished)?(seqMissed[i]?PINK:"rgb(120,166,150)")
         :i===seqIndex?(correctFlash?"rgb(20,155,108)":"rgb(35,96,210)")
         :"rgb(150,160,175)";
-      drawNote(sequence[i],x,col,fingersOn()?sequenceFingers[i]:null);
+      drawNote(sequence[i],i===seqIndex?x+shakeOff():x,col,fingersOn()?sequenceFingers[i]:null);
     }
   }
 }
