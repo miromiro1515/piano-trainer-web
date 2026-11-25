@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>שירים קלים · Piano Notes Learning Free</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin:0; background:rgb(247,249,252); color:rgb(24,40,65);
+    font-family:-apple-system,"Segoe UI",Roboto,"Noto Sans Hebrew",Arial,sans-serif; display:flex; justify-content:center; }
+  main { width:100%; max-width:560px; padding:calc(16px + env(safe-area-inset-top)) 16px calc(24px + env(safe-area-inset-bottom)); }
+  h1 { font-size:24px; margin:4px 0 4px; text-align:center; font-weight:600; }
+  .lead { text-align:center; font-size:15px; margin:4px 0 12px; color:rgb(60,80,105); }
+  a.back, button { display:block; width:100%; border:0; border-radius:14px; margin-top:8px; font:inherit; font-size:17px;
+    color:rgb(24,40,65); background:rgb(228,236,248); padding:12px; text-align:center; text-decoration:none; }
+  button:active { background:rgb(205,220,242); }
+  .tabs { display:flex; gap:8px; margin:6px 0; }
+  .tabs button { margin-top:0; font-size:15px; padding:10px 4px; }
+  .tabs button.on { background:rgb(35,96,210); color:#fff; }
+  .opts { background:#fff; border:1px solid #d5e0ef; border-radius:12px; padding:8px 12px; margin:8px 0; }
+  .opts label { display:flex; align-items:center; gap:10px; font-size:16px; padding:5px 0; }
+  .opts input { width:22px; height:22px; }
+  h2 { font-size:19px; margin:20px 0 2px; }
+  .lvdesc { font-size:14px; color:rgb(60,80,105); margin:0 0 6px; }
+  .song { background:#fff; border:1px solid #d5e0ef; border-radius:14px; padding:10px 8px 12px; margin:10px 0; }
+  .song h3 { font-size:17px; margin:0 6px 2px; }
+  .song .note { font-size:13px; margin:0 6px 4px; color:rgb(90,105,125); }
+  .song canvas { width:100%; display:block; }
+  .song .row { display:flex; gap:8px; }
+  .song .row button { margin-top:4px; font-size:15px; padding:9px; }
+  footer { font-size:12px; color:rgb(110,125,145); text-align:center; margin-top:18px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>שירים קלים לפי רמות</h1>
+  <p class="lead">יד ימין, מפתח סול. בוחרים רמה לפי התווים שכבר לומדים באימון.</p>
+  <a class="back" href="./">חזרה לאימון התווים</a>
+  <div class="tabs" id="octTabs">
+    <button data-oct="0" class="on">אוקטבה ראשונה</button>
+    <button data-oct="12">אוקטבה שנייה</button>
+  </div>
+  <div class="opts">
+    <label><input type="checkbox" id="showNames" checked> שמות התווים מתחת לתווים</label>
+  </div>
+  <div id="list"></div>
+  <footer>שירי עם ושירי ילדים ישנים. הקצב מפושט כדי להקל על הקריאה. ההשמעה היא צליל מלאכותי בדפדפן. גרסה 4.3.</footer>
+</main>
+<script>
+"use strict";
+// Notation: bars separated by "|"; notes like E4 or E4/h (half) or C4/w (whole). Default is a quarter note.
+const LEVELS=[
+ {id:1,title:"רמה 1 · דו רה מי",desc:"רק שלושה תווים: דו, רה, מי.",songs:[
+  {t:"חם ים צלב · Hot Cross Buns",n:"הכפתורים החמים",s:"E4 D4 C4/h | E4 D4 C4/h | C4 C4 C4 C4 | D4 D4 D4 D4 | E4 D4 C4/h"},
+  {t:"לאור הירח · Au clair de la lune",n:"שיר ילדים צרפתי עתיק",s:"C4 C4 C4 D4 | E4/h D4/h | C4 E4 D4 D4 | C4/w"}
+ ]},
+ {id:2,title:"רמה 2 · עד סול",desc:"חמישה תווים: דו, רה, מי, פה, סול.",songs:[
+  {t:"למרי היה כבשה · Mary Had a Little Lamb",n:"",s:"E4 D4 C4 D4 | E4 E4 E4/h | D4 D4 D4/h | E4 G4 G4/h | E4 D4 C4 D4 | E4 E4 E4 E4 | D4 D4 E4 D4 | C4/w"},
+  {t:"ההמנון לשמחה · Ode to Joy (בטהובן)",n:"הנושא המפורסם, בקצב פשוט",s:"E4 E4 F4 G4 | G4 F4 E4 D4 | C4 C4 D4 E4 | E4 D4 D4/h | E4 E4 F4 G4 | G4 F4 E4 D4 | C4 C4 D4 E4 | D4 C4 C4/h"},
+  {t:"פעמוני הכסף · Jingle Bells",n:"הפזמון, מפושט",s:"E4 E4 E4/h | E4 E4 E4/h | E4 G4 C4 D4 | E4/w | F4 F4 F4 F4 | F4 E4 E4 E4 | E4 D4 D4 E4 | D4/h G4/h"}
+ ]},
+ {id:3,title:"רמה 3 · כל האוקטבה",desc:"כל התווים מדו עד דו.",songs:[
+  {t:"נצנצי כוכב קטן · Twinkle Twinkle",n:"",s:"C4 C4 G4 G4 | A4 A4 G4/h | F4 F4 E4 E4 | D4 D4 C4/h | G4 G4 F4 F4 | E4 E4 D4/h | G4 G4 F4 F4 | E4 E4 D4/h | C4 C4 G4 G4 | A4 A4 G4/h | F4 F4 E4 E4 | D4 D4 C4/h"},
+  {t:"גשר לונדון · London Bridge",n:"בקצב מפושט",s:"G4 A4 G4 F4 | E4 F4 G4/h | D4 E4 F4/h | E4 F4 G4/h | G4 A4 G4 F4 | E4 F4 G4/h | D4 G4 E4 C4"}
+ ]}
+];
+const STEP={C:0,D:1,E:2,F:3,G:4,A:5,B:6}, HE={C:"דו",D:"רה",E:"מי",F:"פה",G:"סול",A:"לה",B:"סי"};
+const SEMI={C:0,D:2,E:4,F:5,G:7,A:9,B:11};
+let shift=0, showNames=true, playing=null;
+function parse(s){
+  return s.split("|").map(b=>b.trim().split(/\s+/).map(tok=>{
+    const m=/^([A-G])(\d)(?:\/([hw]))?$/.exec(tok); const L=m[1], oct=+m[2];
+    return {L,oct,midi:12*(oct+1)+SEMI[L],beats:m[3]==="h"?2:m[3]==="w"?4:1,step:(oct-4)*7+STEP[L]};
+  }));
+}
+const wOf=b=>b===1?1:b===2?1.8:2.6;
+function layout(bars,W,gap){
+  const unit=gap*1.95, clef=gap*3.6, pad=gap*1.2, avail=W-clef-gap;
+  const barW=bar=>bar.reduce((a,n)=>a+wOf(n.beats),0)*unit+pad;
+  const lines=[]; let cur=[],w=0;
+  bars.forEach(b=>{ const bw=barW(b); if(cur.length&&w+bw>avail){lines.push(cur);cur=[];w=0;} cur.push(b);w+=bw; });
+  if(cur.length)lines.push(cur);
+  return {lines,unit,clef,pad,barW};
+}
+function render(canvas,song,hi){
+  const bars=parse(song.s), dpr=window.devicePixelRatio||1, W=canvas.clientWidth||340, gap=Math.max(8,Math.min(11,W/32));
+  const L=layout(bars,W,gap), sysH=gap*(showNames?13.5:12);
+  const H=Math.ceil(L.lines.length*sysH+gap);
+  canvas.style.height=H+"px"; canvas.width=Math.round(W*dpr); canvas.height=Math.round(H*dpr);
+  const c=canvas.getContext("2d"); c.setTransform(dpr,0,0,dpr,0,0); c.clearRect(0,0,W,H);
+  let idx=0; const pos=[];
+  L.lines.forEach((line,li)=>{
+    const top=li*sysH+gap*4.6, left=gap*.5, right=W-gap*.5;
+    c.strokeStyle="rgb(72,88,110)"; c.lineWidth=1.5; c.lineCap="round";
+    for(let i=0;i<5;i++){c.beginPath();c.moveTo(left,top+i*gap);c.lineTo(right,top+i*gap);c.stroke();}
+    c.beginPath();c.moveTo(left,top);c.lineTo(left,top+4*gap);c.stroke();
+    c.save();c.translate(left+gap*1.5,top+gap*3);c.scale(gap,gap);c.lineWidth=.12;c.beginPath();
+    c.moveTo(.1,2.4);c.bezierCurveTo(-.8,2.9,-.6,1.8,0,2.0);c.bezierCurveTo(.75,2.3,.15,.4,-.05,-.7);
+    c.bezierCurveTo(-.45,-2.9,.8,-3.4,.55,-1.6);c.bezierCurveTo(.4,-.6,-.8,-.2,-.65,.75);
+    c.bezierCurveTo(-.48,1.8,1.1,1.45,.9,.45);c.bezierCurveTo(.7,-.3,-.3,-.1,-.2,.65);c.stroke();c.restore();
+    // stretch the line to fill the width
+    const used=line.reduce((a,b)=>a+L.barW(b),0), room=right-left-L.clef-gap*.5;
+    const k=li<L.lines.length-1||used>room*.8?room/used:1;
+    let x=left+L.clef;
+    line.forEach((bar,bi)=>{
+      const bw=L.barW(bar)*k, nw=bar.reduce((a,n)=>a+wOf(n.beats),0), inner=bw-L.pad*k;
+      let nx=x+L.pad*k*.35;
+      bar.forEach(n=>{
+        const w=wOf(n.beats)/nw*(inner), cx=nx+w*.5; nx+=w;
+        const y=top+4*gap-(n.step-2)*gap/2;
+        const col=(hi===idx)?"rgb(35,96,210)":"rgb(24,40,65)";
+        c.strokeStyle="rgb(72,88,110)";c.lineWidth=1.5;c.beginPath();
+        for(let s=0;s>=n.step;s-=2){const ly=top+4*gap-(s-2)*gap/2;c.moveTo(cx-gap,ly);c.lineTo(cx+gap,ly);}
+        for(let s=12;s<=n.step;s+=2){const ly=top+4*gap-(s-2)*gap/2;c.moveTo(cx-gap,ly);c.lineTo(cx+gap,ly);}
+        c.stroke();
+        c.save();c.translate(cx,y);c.rotate(-18*Math.PI/180);c.beginPath();c.ellipse(0,0,gap*.65,gap*.42,0,0,6.3);
+        if(n.beats>=2){c.strokeStyle=col;c.lineWidth=2;c.stroke();}else{c.fillStyle=col;c.fill();}c.restore();
+        if(n.beats<4){const up=n.step<6,sx=up?cx+gap*.58:cx-gap*.58;c.strokeStyle=col;c.lineWidth=1.8;c.beginPath();c.moveTo(sx,y);c.lineTo(sx,y+(up?-3.2:3.2)*gap);c.stroke();}
+        if(showNames){c.fillStyle=col;c.font=`${Math.max(11,gap*1.15)}px Arial`;c.textAlign="center";c.fillText(HE[n.L],cx,top+4*gap+gap*3.9+ (n.step<-2?gap*1.2:0));}
+        pos.push(1);idx++;
+      });
+      x+=bw;
+      c.strokeStyle="rgb(72,88,110)";c.lineWidth=1.5;c.beginPath();c.moveTo(x,top);c.lineTo(x,top+4*gap);c.stroke();
+    });
+    if(li===L.lines.length-1){c.lineWidth=4;c.beginPath();c.moveTo(x-3,top);c.lineTo(x-3,top+4*gap);c.stroke();}
+  });
+}
+let audio=null;
+function stopPlay(){ if(playing){playing.stop=true;playing=null;} document.querySelectorAll(".song canvas").forEach(cv=>cv._r&&cv._r(-1)); document.querySelectorAll(".playbtn").forEach(b=>b.textContent="▶ השמעה"); }
+async function play(song,cv,btn){
+  if(playing){const same=playing.cv===cv; stopPlay(); if(same)return;}
+  const tok={stop:false,cv}; playing=tok; btn.textContent="■ עצירה";
+  const notes=parse(song.s).flat(); const ctx=audio||(audio=new (window.AudioContext||window.webkitAudioContext)()); await ctx.resume();
+  const beat=0.62;
+  for(let i=0;i<notes.length&&!tok.stop;i++){
+    cv._r(i); const n=notes[i], d=n.beats*beat;
+    const o=ctx.createOscillator(),g=ctx.createGain(),t=ctx.currentTime;
+    o.type="triangle";o.frequency.value=440*Math.pow(2,(n.midi+shift-69)/12);
+    g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(.18,t+.02);g.gain.exponentialRampToValueAtTime(.001,t+d*.95);
+    o.connect(g);g.connect(ctx.destination);o.start(t);o.stop(t+d);
+    await new Promise(r=>setTimeout(r,d*1000));
+  }
+  if(playing===tok)stopPlay();
+}
+function shifted(song){ if(!shift)return song; return {...song,s:song.s.replace(/([A-G])(\d)/g,(m,l,o)=>l+(+o+shift/12))}; }
+function build(){
+  stopPlay();
+  const list=document.getElementById("list"); list.innerHTML="";
+  LEVELS.forEach(lv=>{
+    const h=document.createElement("h2");h.textContent=lv.title;list.appendChild(h);
+    const p=document.createElement("p");p.className="lvdesc";p.textContent=lv.desc+(shift?" (באוקטבה השנייה)":"");list.appendChild(p);
+    lv.songs.forEach(sg=>{
+      const song=shifted(sg), d=document.createElement("div"); d.className="song";
+      d.innerHTML=`<h3></h3><div class="note"></div><canvas></canvas><div class="row"><button class="playbtn">▶ השמעה</button></div>`;
+      d.querySelector("h3").textContent=sg.t; d.querySelector(".note").textContent=sg.n; if(!sg.n)d.querySelector(".note").remove();
+      list.appendChild(d);
+      const cv=d.querySelector("canvas"); cv._r=hi=>render(cv,song,hi); cv._r(-1);
+      d.querySelector(".playbtn").addEventListener("click",e=>play(song,cv,e.target));
+    });
+  });
+}
+document.querySelectorAll("#octTabs button").forEach(b=>b.addEventListener("click",()=>{
+  document.querySelectorAll("#octTabs button").forEach(x=>x.classList.toggle("on",x===b)); shift=+b.dataset.oct; build();
+}));
+document.getElementById("showNames").addEventListener("change",e=>{showNames=e.target.checked;build();});
+window.addEventListener("resize",()=>{document.querySelectorAll(".song canvas").forEach(cv=>cv._r&&cv._r(-1));});
+build();
+</script>
+</body>
+</html>
