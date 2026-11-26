@@ -103,7 +103,9 @@
   <button id="mode"></button>
   <footer>הצליל מעובד בדפדפן בלבד. אין הקלטה או העלאה לרשת. ההתקדמות נשמרת במכשיר זה. גרסה 4.3.</footer>
 </main>
-<div id="visits"><img src="https://visitor-badge.laobi.icu/badge?page_id=miromiro1515.piano-trainer-web&left_text=%D7%91%D7%99%D7%A7%D7%95%D7%A8%D7%99%D7%9D" alt="" onerror="this.parentNode.style.display='none'"></div>
+<div id="visits"><img id="visitsImg" alt="" onerror="this.parentNode.style.display='none'"></div>
+<script>(function(){var b="https://visitor-badge.laobi.icu/badge?page_id=miromiro1515.piano-trainer-web&left_text=%D7%91%D7%99%D7%A7%D7%95%D7%A8%D7%99%D7%9D",i=document.getElementById("visitsImg"),seen=false;try{seen=localStorage.getItem("piano.counted")==="1"}catch(e){}
+if(!seen)i.onload=function(){try{localStorage.setItem("piano.counted","1")}catch(e){}};i.src=b+(seen?"&query_only=true":"");})();</script>
 <script>
 "use strict";
 // ---- training model (ported from the native app) ----
