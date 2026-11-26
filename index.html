@@ -104,7 +104,7 @@
   <button id="midi">חיבור פסנתר (MIDI)</button>
   <button id="hint">רמז: שם התו</button>
   <button id="mode"></button>
-  <footer>הצליל מעובד בדפדפן בלבד. אין הקלטה או העלאה לרשת. ההתקדמות נשמרת במכשיר זה. גרסה 4.4.</footer>
+  <footer>הצליל מעובד בדפדפן בלבד. אין הקלטה או העלאה לרשת. ההתקדמות נשמרת במכשיר זה. גרסה 4.5.</footer>
 </main>
 <div id="visits"><img src="https://visitor-badge.laobi.icu/badge?page_id=miromiro1515.piano-trainer-web&left_text=%D7%91%D7%99%D7%A7%D7%95%D7%A8%D7%99%D7%9D" alt="" onerror="this.parentNode.style.display='none'"></div>
 <script>
@@ -156,6 +156,9 @@ let correct=+localStorage.getItem("pt_correct")||0;
 let seqDone=+localStorage.getItem("pt_seqDone")||0;
 let seqMode=localStorage.getItem("pt_seqMode")==="1";
 let target=60, stable=0, releaseFrames=0, waitingForRelease=false, transitioning=false;
+// Last 4 judged frames (1 = matched target). High piano notes decay fast and
+// their harmonics can flip the detected pitch for a frame, so 3-of-4 also confirms.
+let hitBuf=[];
 let sequence=[], seqIndex=0, correctFlash=false, active=false;
 let exerciseNotes=[], exerciseFingers=[], singleCursor=-1, pendingAdvance=null, demonstrating=false;
 
@@ -371,7 +374,7 @@ function chooseNote(release=true){
     target=exerciseNotes[singleCursor];targetFinger=fingerFor(target,singleCursor);
   }
   updateFinger();hintBtn.textContent="רמז: שם התו";
-  stable=0;releaseFrames=0;transitioning=false;waitingForRelease=release;
+  stable=0;hitBuf=[];releaseFrames=0;transitioning=false;waitingForRelease=release;
   updateScore();draw();
   if(listening()) status.textContent=release?"שחררו את הקליד, ואז נגנו את התו המסומן":"נגנו את התו המסומן";
   else status.textContent="אפשר לשמוע ולראות הדגמה, ואז להפעיל מיקרופון או לחבר פסנתר (MIDI)";
@@ -406,14 +409,14 @@ function rollForward(){
   seqIndex=(seqIndex+1)%N; missedNow=false; wrongFrames=0;
   target=sequence[seqIndex]; targetFinger=sequenceFingers[seqIndex]; updateFinger();
   hintBtn.textContent="רמז: שם התו";
-  stable=0; releaseFrames=0; transitioning=false; waitingForRelease=true;
+  stable=0; hitBuf=[]; releaseFrames=0; transitioning=false; waitingForRelease=true;
   status.textContent="נכון! ✓";
   draw();
 }
 function advanceSequence(){
   shownAt=performance.now(); seqIndex++; missedNow=false; wrongFrames=0; target=sequence[seqIndex];targetFinger=sequenceFingers[seqIndex];updateFinger();
   hintBtn.textContent="רמז: שם התו";
-  stable=0; releaseFrames=0; transitioning=false; waitingForRelease=true;
+  stable=0; hitBuf=[]; releaseFrames=0; transitioning=false; waitingForRelease=true;
   status.textContent="שחררו את הקליד, ואז נגנו את התו הבא ברצף";
   draw();
 }
@@ -462,16 +465,18 @@ function handlePitch(hz){
     if(played===otherNote)otherCount++;else{otherNote=played;otherCount=1;}
     if(otherCount>=3){
       waitingForRelease=false;otherNote=null;otherCount=0;releaseFrames=0;
-      stable=(played===target)?2:0; wrongFrames=(played===target)?0:1;
+      hitBuf=[]; stable=(played===target)?2:0; wrongFrames=(played===target)?0:1;
     }
     return;
   }
   if(played===lastNote&&played!==target&&performance.now()<ignoreLastUntil)return;
   releaseFrames=0;
   if(played===target)wrongFrames=0;
-  if(played===target && Math.abs(exact-target)<0.38){
+  const goodHit=played===target&&Math.abs(exact-target)<0.38;
+  hitBuf.push(goodHit?1:0); if(hitBuf.length>4)hitBuf.shift();
+  if(goodHit){
     stable++;
-    if(stable>=3) confirmCorrect();
+    if(stable>=3||hitBuf.reduce((a,b)=>a+b,0)>=3) confirmCorrect();
   } else {
     stable=0; if(++wrongFrames>=2){missedNow=true;wrongFeedback();wrongFrames=-6;}
     if(((played-target)%12===0)&&played!==target){status.textContent=played>target?"זה התו הנכון, אבל באוקטבה גבוהה מדי. נגנו באוקטבה של דו האמצעי":"זה התו הנכון, אבל באוקטבה נמוכה מדי. נגנו באוקטבה של דו האמצעי";return;}
@@ -642,7 +647,7 @@ function stopListening(){
   analyser=null;
   micBtn.textContent="הפעלת מיקרופון"; micBtn.classList.remove("on");
   if(status.textContent!=="לחצו על הפעלת המיקרופון כדי להתחיל") status.textContent="המיקרופון עצור";
-  clearTimeout(pendingAdvance); correctFlash=false; stable=0; transitioning=false; draw();
+  clearTimeout(pendingAdvance); correctFlash=false; stable=0; hitBuf=[]; transitioning=false; draw();
 }
 micBtn.addEventListener("click",()=>{ active?stopListening():startListening(); });
 hintBtn.addEventListener("click",()=>{ hintBtn.textContent=`${noteName(target)} · ${latinName(target)}`; });
