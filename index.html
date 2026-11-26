@@ -104,7 +104,7 @@
   <button id="midi">חיבור פסנתר (MIDI)</button>
   <button id="hint">רמז: שם התו</button>
   <button id="mode"></button>
-  <footer>הצליל מעובד בדפדפן בלבד. אין הקלטה או העלאה לרשת. ההתקדמות נשמרת במכשיר זה. גרסה 4.5.</footer>
+  <footer>הצליל מעובד בדפדפן בלבד. אין הקלטה או העלאה לרשת. ההתקדמות נשמרת במכשיר זה. גרסה 4.6.</footer>
 </main>
 <div id="visits"><img src="https://visitor-badge.laobi.icu/badge?page_id=miromiro1515.piano-trainer-web&left_text=%D7%91%D7%99%D7%A7%D7%95%D7%A8%D7%99%D7%9D" alt="" onerror="this.parentNode.style.display='none'"></div>
 <script>
@@ -376,7 +376,7 @@ function chooseNote(release=true){
   updateFinger();hintBtn.textContent="רמז: שם התו";
   stable=0;hitBuf=[];releaseFrames=0;transitioning=false;waitingForRelease=release;
   updateScore();draw();
-  if(listening()) status.textContent=release?"שחררו את הקליד, ואז נגנו את התו המסומן":"נגנו את התו המסומן";
+  if(listening()) status.textContent=release?(midiLive()&&!active?"נכון! ✓ נגנו את התו הבא":"שחררו את הקליד, ואז נגנו את התו המסומן"):"נגנו את התו המסומן";
   else status.textContent="אפשר לשמוע ולראות הדגמה, ואז להפעיל מיקרופון או לחבר פסנתר (MIDI)";
 }
 
@@ -577,13 +577,14 @@ function midiNoteOn(note){
   if(demonstrating)return;
   const played=note-Math.round(calib);
   if(calibrating){ midiCalibrate(note); return; }
-  midiHeld.add(played); draw();
+  midiHeld.add(played);
   heard.textContent=`נשמע: ${noteName(played)} · ${latinName(played)} (MIDI)`;
-  if(transitioning)return;
+  if(transitioning){draw();return;}
   // A key press is always a fresh onset, so it clears any release wait —
   // repeating the same key twice in a row works.
-  waitingForRelease=false; releaseFrames=0; stable=0;
+  waitingForRelease=false; releaseFrames=0; stable=0; hitBuf=[];
   lastNote=played;
+  draw();
   if(played===target){ wrongFrames=0; confirmCorrect(); }
   else{
     wrongFrames++; missedNow=true; wrongFeedback();
@@ -775,7 +776,7 @@ function draw(){
     }
     hx=Math.min(hx,w-gap*1.6);
     let k=0;
-    for(const m of [...midiHeld].sort((a,b)=>a-b)){ if(m===target&&midiHeld.size===1)continue; drawNote(m,hx+k*gap*1.5,"rgb(150,100,210)",null); k++; }
+    for(const m of [...midiHeld].sort((a,b)=>a-b)){ if(waitingForRelease&&m===lastNote)continue; if(m===target&&midiHeld.size===1)continue; drawNote(m,hx+k*gap*1.5,"rgb(150,100,210)",null); k++; }
   }
 }
 window.addEventListener("resize",draw);
