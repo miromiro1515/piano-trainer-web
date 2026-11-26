@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>תרגול שירים בשתי ידיים · MIDI</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin:0; background:rgb(247,249,252); color:rgb(24,40,65);
+    font-family:-apple-system,"Segoe UI",Roboto,"Noto Sans Hebrew",Arial,sans-serif; display:flex; justify-content:center; }
+  main { width:100%; max-width:560px; padding:calc(16px + env(safe-area-inset-top)) 16px calc(24px + env(safe-area-inset-bottom)); }
+  h1 { font-size:23px; margin:4px 0; text-align:center; font-weight:600; }
+  .lead { text-align:center; font-size:14px; margin:4px 0 10px; color:rgb(60,80,105); }
+  a.back, button { display:block; width:100%; border:0; border-radius:14px; margin-top:8px; font:inherit; font-size:17px;
+    color:rgb(24,40,65); background:rgb(228,236,248); padding:12px; text-align:center; text-decoration:none; }
+  button:active { background:rgb(205,220,242); }
+  .tabs { display:flex; gap:8px; margin:6px 0; }
+  .tabs button { margin-top:0; font-size:15px; padding:10px 4px; }
+  .tabs button.on { background:rgb(35,96,210); color:#fff; }
+  #midi { background:rgb(70,140,95); color:#fff; font-size:18px; }
+  #midi.on { background:rgb(190,70,60); }
+  #status { font-size:18px; margin:8px 0 2px; min-height:24px; text-align:center; }
+  #heard { font-size:15px; margin:2px 0; min-height:20px; color:rgb(60,80,105); text-align:center; }
+  #score { font-size:15px; text-align:center; color:rgb(60,80,105); }
+  .opts { background:#fff; border:1px solid #d5e0ef; border-radius:12px; padding:6px 12px; margin:8px 0; }
+  .opts label { display:flex; align-items:center; gap:10px; font-size:16px; padding:5px 0; }
+  .opts input { width:22px; height:22px; }
+  #sheet { background:#fff; border:1px solid #d5e0ef; border-radius:14px; padding:6px 4px; margin:6px 0; }
+  canvas { width:100%; display:block; }
+  .row { display:flex; gap:8px; }
+  .row button { flex:1; }
+  footer { font-size:12px; color:rgb(110,125,145); text-align:center; margin-top:16px; }
+</style>
+</head>
+<body>
+<main>
+  <h1 id="title"></h1>
+  <p class="lead" id="lead"></p>
+  <p class="lead" style="margin-top:-4px;font-size:12px">גרסה 1.0</p>
+  <a class="back" href="./">חזרה לאימון התווים</a>
+  <div class="tabs" id="songTabs"></div>
+  <div class="tabs" id="handTabs">
+    <button data-h="both" class="on">שתי ידיים</button>
+    <button data-h="r">יד ימין</button>
+    <button data-h="l">יד שמאל</button>
+  </div>
+  <div class="opts">
+    <label><input type="checkbox" id="showNames" checked> שמות התווים ליד התווים</label>
+  </div>
+  <div id="sheet"><canvas id="cv"></canvas></div>
+  <div id="status">חברו פסנתר ב-MIDI כדי לתרגל, או השמיעו את הקטע</div>
+  <div id="heard"></div>
+  <div id="score"></div>
+  <button id="midi">חיבור פסנתר (MIDI)</button>
+  <div class="row"><button id="play">▶ השמעה</button><button id="restart">מההתחלה</button></div>
+  <footer id="credit"></footer>
+</main>
+<script>
+"use strict";
+// Simplified arrangements, all white keys, 4/4. Each event: r = right-hand
+// notes, l = left-hand notes (played together), b = beats.
+const SONGS=[
+ {id:"adeline", t:"בלדה לאדלין · Ballade pour Adeline",
+  sub:"הנושא המפורסם, בעיבוד מקוצר ופשוט בדו מז'ור",
+  credit:"עיבוד מקוצר ופשוט של הנושא (פול דה סנוויל, 1976) לתרגול אישי.",
+  bars:[
+   [{r:["E5"],l:["C3"],b:1},{r:["E5"],l:[],b:1},{r:["F5"],l:[],b:1},{r:["F5"],l:[],b:1}],
+   [{r:["F5"],l:["F3"],b:1},{r:["F5"],l:[],b:1},{r:["G5"],l:["G3"],b:1},{r:["G5"],l:[],b:1}],
+   [{r:["A5"],l:["F3"],b:2},{r:["G5"],l:["G3"],b:2}],
+   [{r:["E5"],l:["C3"],b:4}],
+   [{r:["E5"],l:["C3"],b:1},{r:["E5"],l:[],b:1},{r:["F5"],l:[],b:1},{r:["F5"],l:[],b:1}],
+   [{r:["F5"],l:["F3"],b:1},{r:["F5"],l:[],b:1},{r:["G5"],l:["G3"],b:1},{r:["G5"],l:[],b:1}],
+   [{r:["A5"],l:["F3"],b:2},{r:["G5"],l:["G3"],b:2}],
+   [{r:["E5"],l:["C3"],b:4}]
+  ]},
+ {id:"canon", t:"קאנון בדו · Canon in D",
+  sub:"פחלבך, בעיבוד פשוט — הושם בדו מז'ור כדי להקל על הקריאה",
+  credit:"קאנון בדו (יוהן פחלבך, סביבות 1680), יצירה בנחלת הכלל. עיבוד פשוט לתרגול.",
+  bars:[
+   [{r:["E5"],l:["C3"],b:1},{r:["D5"],l:[],b:1},{r:["C5"],l:["G3"],b:1},{r:["B4"],l:[],b:1}],
+   [{r:["A4"],l:["A2"],b:1},{r:["B4"],l:[],b:1},{r:["C5"],l:["E3"],b:1},{r:["B4"],l:[],b:1}],
+   [{r:["C5"],l:["F2"],b:1},{r:["D5"],l:[],b:1},{r:["E5"],l:["C3"],b:1},{r:["F5"],l:[],b:1}],
+   [{r:["E5"],l:["F2"],b:2},{r:["D5"],l:["G2"],b:2}],
+   [{r:["C5"],l:["C3"],b:1},{r:["B4"],l:[],b:1},{r:["A4"],l:["G3"],b:1},{r:["G4"],l:[],b:1}],
+   [{r:["F4"],l:["A2"],b:1},{r:["E4"],l:[],b:1},{r:["F4"],l:["E3"],b:1},{r:["D4"],l:[],b:1}],
+   [{r:["E4"],l:["F2"],b:1},{r:["F4"],l:[],b:1},{r:["G4"],l:["C3"],b:1},{r:["A4"],l:[],b:1}],
+   [{r:["C5"],l:["C3"],b:4}]
+  ]}
+];
+const DIAT={C:0,D:1,E:2,F:3,G:4,A:5,B:6}, SEMI={C:0,D:2,E:4,F:5,G:7,A:9,B:11};
+const HE={C:"דו",D:"רה",E:"מי",F:"פה",G:"סול",A:"לה",B:"סי"};
+function note(s){const L=s[0],oct=+s[1];return {L,oct,midi:12*(oct+1)+SEMI[L],
+  tStep:(oct-4)*7+DIAT[L]-4, bStep:(oct-2)*7+DIAT[L]-4};}
+// treble bottom line = E4 (tStep 0); bass bottom line = G2 (bStep 0)
+const $=id=>document.getElementById(id);
+const cv=$("cv"), statusEl=$("status"), heardEl=$("heard"), scoreEl=$("score");
+let song=SONGS[0], BARS=song.bars;
+let mode="both", showNames=true;
+let events=[], idx=0, missed=[], freshOk=false, done=false;
+function required(ev){ return (mode==="l"?[]:ev.r).concat(mode==="r"?[]:ev.l).map(note).map(n=>n.midi); }
+function buildEvents(){ events=[]; BARS.forEach(bar=>bar.forEach(ev=>{ if(required(ev).length) events.push(ev); })); }
+function restart(msg){
+  buildEvents(); idx=0; missed=events.map(()=>false); freshOk=false; done=false;
+  draw(); updateScore();
+  if(msg)statusEl.textContent=msg;
+}
+function updateScore(){ scoreEl.textContent=events.length?`צעד ${Math.min(idx+1,events.length)} מתוך ${events.length}`:""; }
+const wOf=b=>b===1?1:b===2?1.7:2.4;
+function draw(){
+  const dpr=window.devicePixelRatio||1, W=cv.clientWidth||340, gap=Math.max(8,Math.min(10.5,W/34));
+  const unit=gap*2.1, clef=gap*4.4, pad=gap*1.3;
+  const avail=W-clef-gap;
+  const barW=bar=>bar.reduce((a,ev)=>a+wOf(ev.b),0)*unit+pad;
+  const lines=[]; let cur=[],w=0;
+  BARS.forEach(b=>{const bw=barW(b); if(cur.length&&w+bw>avail){lines.push(cur);cur=[];w=0;} cur.push(b);w+=bw;});
+  if(cur.length)lines.push(cur);
+  const sysH=gap*(showNames?19:17), H=Math.ceil(lines.length*sysH+gap);
+  cv.style.height=H+"px"; cv.width=Math.round(W*dpr); cv.height=Math.round(H*dpr);
+  const c=cv.getContext("2d"); c.setTransform(dpr,0,0,dpr,0,0);
+  c.clearRect(0,0,W,H);
+  let evi=0; const evIndex=new Map();
+  BARS.forEach(b=>b.forEach(ev=>{ if(required(ev).length){evIndex.set(ev,evi++);} }));
+  lines.forEach((line,li)=>{
+    const top=li*sysH+gap*4.2, bTop=top+gap*7.2, left=gap*.5, right=W-gap*.5;
+    c.strokeStyle="rgb(72,88,110)"; c.lineWidth=1.5; c.lineCap="round";
+    for(let i=0;i<5;i++){
+      c.beginPath();c.moveTo(left,top+i*gap);c.lineTo(right,top+i*gap);c.stroke();
+      c.beginPath();c.moveTo(left,bTop+i*gap);c.lineTo(right,bTop+i*gap);c.stroke();
+    }
+    // treble clef
+    c.save();c.translate(left+gap*1.7,top+gap*2.6);c.scale(gap,gap);c.lineWidth=.12;c.beginPath();
+    c.moveTo(.1,2.4);c.bezierCurveTo(-.8,2.9,-.6,1.8,0,2.0);c.bezierCurveTo(.75,2.3,.15,.4,-.05,-.7);
+    c.bezierCurveTo(-.45,-2.9,.8,-3.4,.55,-1.6);c.bezierCurveTo(.4,-.6,-.8,-.2,-.65,.75);
+    c.bezierCurveTo(-.48,1.8,1.1,1.45,.9,.45);c.bezierCurveTo(.7,-.3,-.3,-.1,-.2,.65);c.stroke();c.restore();
+    // bass clef: curl around the F line (second from top) + two dots
+    c.strokeStyle="rgb(72,88,110)";c.lineWidth=1.8;c.beginPath();
+    c.arc(left+gap*1.2,bTop+gap,gap*.85,-1.15,1.25);c.stroke();
+    c.fillStyle="rgb(72,88,110)";
+    [-.5,.5].forEach(dy=>{c.beginPath();c.arc(left+gap*2.35,bTop+gap+dy*gap,gap*.16,0,6.3);c.fill();});
+    // connector joining the two staves
+    c.beginPath();c.moveTo(left,top);c.lineTo(left,bTop+4*gap);c.stroke();
+    const used=line.reduce((a,b)=>a+barW(b),0), room=right-left-clef-gap*.5;
+    const k=li<lines.length-1||used>room*.8?room/used:1;
+    let x=left+clef;
+    line.forEach(bar=>{
+      const bw=barW(bar)*k, nw=bar.reduce((a,ev)=>a+wOf(ev.b),0), inner=bw-pad*k;
+      let nx=x+pad*k*.35;
+      bar.forEach(ev=>{
+        const w=wOf(ev.b)/nw*inner, cx=nx+w*.5; nx+=w;
+        const ei=evIndex.get(ev);
+        const col=done||ei<idx?(missed[ei]?"rgb(226,84,130)":"rgb(120,166,150)")
+          :ei===idx?"rgb(35,96,210)":"rgb(150,160,175)";
+        ev.r.map(note).forEach(n=>drawNote(c,n,cx,top,gap,"t",col,mode==="l",showNames,ev.b));
+        ev.l.map(note).forEach(n=>drawNote(c,n,cx,bTop,gap,"b",col,mode==="r",showNames,ev.b));
+      });
+      x+=bw;
+      c.strokeStyle="rgb(72,88,110)";c.lineWidth=1.5;c.beginPath();
+      c.moveTo(x,top);c.lineTo(x,top+4*gap);c.moveTo(x,bTop);c.lineTo(x,bTop+4*gap);c.stroke();
+    });
+    if(li===lines.length-1){c.lineWidth=4;c.beginPath();c.moveTo(x-3,top);c.lineTo(x-3,bTop+4*gap);c.stroke();}
+  });
+}
+function drawNote(c,n,cx,top,gap,staff,col,dimmed,names,beats){
+  const step=staff==="t"?n.tStep:n.bStep;
+  const y=top+4*gap-step*gap/2;
+  const cc=dimmed?"rgb(210,216,226)":col;
+  c.strokeStyle="rgb(72,88,110)";c.lineWidth=1.2;c.beginPath();
+  for(let s=-2;s>=step;s-=2){const ly=top+4*gap-s*gap/2;c.moveTo(cx-gap,ly);c.lineTo(cx+gap,ly);}
+  for(let s=10;s<=step;s+=2){const ly=top+4*gap-s*gap/2;c.moveTo(cx-gap,ly);c.lineTo(cx+gap,ly);}
+  c.stroke();
+  c.save();c.translate(cx,y);c.rotate(-18*Math.PI/180);c.beginPath();c.ellipse(0,0,gap*.62,gap*.4,0,0,6.3);
+  if(beats>=2){c.strokeStyle=cc;c.lineWidth=2;c.stroke();}else{c.fillStyle=cc;c.fill();}c.restore();
+  if(beats<4){const up=staff==="b"?true:step<8,sx=up?cx+gap*.55:cx-gap*.55;
+    c.strokeStyle=cc;c.lineWidth=1.7;c.beginPath();c.moveTo(sx,y);c.lineTo(sx,y+(up?-3:3)*gap);c.stroke();}
+  if(names&&!dimmed){c.fillStyle=cc;c.font=`${Math.max(10,gap*1.1)}px Arial`;c.textAlign="center";
+    c.fillText(HE[n.L],cx,staff==="t"?top-gap*1.1:top+4*gap+gap*1.9);}
+}
+// ---- MIDI practice ----
+let midiAccess=null, midiInputs=0; const held=new Set();
+const midiBtn=$("midi");
+function midiLive(){return !!midiAccess&&midiInputs>0;}
+function updateMidiBtn(){
+  midiBtn.classList.toggle("on",midiLive());
+  midiBtn.textContent=!midiAccess?"חיבור פסנתר (MIDI)":midiInputs?`פסנתר מחובר (${midiInputs}) · ניתוק`:"מחובר, ממתין לפסנתר…";
+}
+function hookInputs(){ midiInputs=0; if(!midiAccess)return;
+  for(const inp of midiAccess.inputs.values()){midiInputs++;inp.onmidimessage=onMidi;} }
+async function toggleMidi(){
+  if(midiAccess){ midiAccess.onstatechange=null;
+    for(const inp of midiAccess.inputs.values())inp.onmidimessage=null;
+    midiAccess=null;midiInputs=0;held.clear();updateMidiBtn();statusEl.textContent="הפסנתר מנותק";return; }
+  if(!navigator.requestMIDIAccess){statusEl.textContent="הדפדפן לא תומך ב-MIDI. בכרום באנדרואיד זה עובד עם כבל USB (OTG)";return;}
+  try{midiAccess=await navigator.requestMIDIAccess({sysex:false});}
+  catch(e){statusEl.textContent="לא התקבלה הרשאת MIDI. אשרו ונסו שוב";return;}
+  midiAccess.onstatechange=()=>{hookInputs();updateMidiBtn();};
+  hookInputs();updateMidiBtn();
+  statusEl.textContent=midiInputs?"הפסנתר מחובר! נגנו את הצלילים המסומנים":"מחפש פסנתר… חברו בכבל USB והדליקו";
+}
+function onMidi(e){
+  const d=e.data,cmd=d[0]&0xf0,nt=d[1],vel=d[2]||0;
+  if(cmd===0x90&&vel>0)noteOn(nt); else if(cmd===0x80||(cmd===0x90&&!vel))noteOff(nt);
+}
+let audioCtx=null,lastBeep=0;
+function beep(){ const now=performance.now(); if(now-lastBeep<600)return; lastBeep=now;
+  try{ audioCtx=audioCtx||new (window.AudioContext||window.webkitAudioContext)();
+    const o=audioCtx.createOscillator(),g=audioCtx.createGain(),t=audioCtx.currentTime;
+    o.type="sine";o.frequency.value=130;
+    g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(.06,t+.02);g.gain.exponentialRampToValueAtTime(.001,t+.18);
+    o.connect(g);g.connect(audioCtx.destination);o.start(t);o.stop(t+.2);}catch(e){} }
+const HEN=["דו","דו דיאז","רה","רה דיאז","מי","פה","פה דיאז","סול","סול דיאז","לה","לה דיאז","סי"];
+function noteOn(nt){
+  held.add(nt);
+  heardEl.textContent="נשמע: "+HEN[nt%12]+" (MIDI)";
+  if(done||!events.length)return;
+  const req=required(events[idx]);
+  if(!req.includes(nt)){ missed[idx]=true; beep(); draw();
+    statusEl.textContent="תו לא נכון — נסו שוב"; return; }
+  freshOk=true;
+  if(req.every(m=>held.has(m))){
+    idx++; freshOk=false;
+    if(idx>=events.length){ done=true; draw();
+      statusEl.textContent=missed.some(Boolean)?"סיימתם! לחצו ״מההתחלה״ לתרגל שוב את הנקודות הוורודות":"כל הכבוד! הקטע הושלם ✓";
+      scoreEl.textContent=""; return; }
+    draw(); updateScore();
+    statusEl.textContent="נכון! ✓";
+  }
+}
+function noteOff(nt){ held.delete(nt); }
+midiBtn.addEventListener("click",toggleMidi);
+// ---- playback ----
+let playing=null;
+function stopPlay(){ if(playing)playing.stop=true; playing=null; $("play").textContent="▶ השמעה"; }
+async function playAll(){
+  if(playing){stopPlay();restart();return;}
+  const tok={stop:false}; playing=tok; $("play").textContent="■ עצירה";
+  const ctx=audioCtx||(audioCtx=new (window.AudioContext||window.webkitAudioContext)()); await ctx.resume();
+  const beat=0.55;
+  for(let i=0;i<events.length&&!tok.stop;i++){
+    idx=i; draw();
+    const ev=events[i], d=ev.b*beat;
+    ev.r.concat(ev.l).map(note).forEach(n=>{
+      const o=ctx.createOscillator(),g=ctx.createGain(),t=ctx.currentTime;
+      o.type="triangle";o.frequency.value=440*Math.pow(2,(n.midi-69)/12);
+      g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(.16,t+.02);g.gain.exponentialRampToValueAtTime(.001,t+d*.95);
+      o.connect(g);g.connect(ctx.destination);o.start(t);o.stop(t+d);});
+    await new Promise(r=>setTimeout(r,d*1000));
+  }
+  if(playing===tok){playing=null;$("play").textContent="▶ השמעה";restart("חברו פסנתר ב-MIDI כדי לתרגל, או השמיעו שוב");}
+}
+$("play").addEventListener("click",playAll);
+$("restart").addEventListener("click",()=>{stopPlay();restart("מההתחלה — נגנו את הצלילים המסומנים");});
+document.querySelectorAll("#handTabs button").forEach(b=>b.addEventListener("click",()=>{
+  document.querySelectorAll("#handTabs button").forEach(x=>x.classList.toggle("on",x===b));
+  mode=b.dataset.h; held.clear();
+  restart(mode==="both"?"מצב שתי ידיים — נגנו ימין ושמאל ביחד":mode==="r"?"מצב יד ימין בלבד":"מצב יד שמאל בלבד");
+}));
+// song tabs
+const st=$("songTabs");
+SONGS.forEach((s,i)=>{
+  const b=document.createElement("button");
+  b.textContent=s.t.split("·")[0].trim();
+  if(i===0)b.classList.add("on");
+  b.addEventListener("click",()=>{
+    st.querySelectorAll("button").forEach(x=>x.classList.toggle("on",x===b));
+    song=s; BARS=s.bars; held.clear();
+    $("title").textContent=s.t; $("lead").textContent=s.sub; $("credit").textContent=s.credit+" הזיהוי עובד עם פסנתר מחובר ב-USB (MIDI) בדפדפן כרום.";
+    restart("הוחלף שיר — נגנו את הצלילים המסומנים");
+  });
+  st.appendChild(b);
+});
+$("showNames").addEventListener("change",e=>{showNames=e.target.checked;draw();});
+window.addEventListener("resize",()=>draw());
+$("title").textContent=song.t; $("lead").textContent=song.sub;
+$("credit").textContent=song.credit+" הזיהוי עובד עם פסנתר מחובר ב-USB (MIDI) בדפדפן כרום.";
+restart();
+</script>
+</body>
+</html>
