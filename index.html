@@ -43,6 +43,8 @@
   button:active { background: rgb(205,220,242); }
   #mic { background: rgb(35,96,210); color: #fff; font-size: 18px; }
   #mic.on { background: rgb(190,70,60); }
+  #midi { background: rgb(70,140,95); color: #fff; font-size: 18px; }
+  #midi.on { background: rgb(190,70,60); }
   .row { display: flex; gap: 8px; }
   .row button { flex: 1; }
   select { width:100%; padding:10px; font:inherit; border:1px solid #b8c8de; border-radius:10px; background:white; color:inherit; }
@@ -99,13 +101,12 @@
   <div id="heard">נגנו תו אחד בכל פעם, בלי אקורד או דוושת השהיה</div>
   <button id="demo">לפני שמנגנים: הדגמת התווים והאצבעות</button>
   <button id="mic">הפעלת מיקרופון</button>
+  <button id="midi">חיבור פסנתר (MIDI)</button>
   <button id="hint">רמז: שם התו</button>
   <button id="mode"></button>
-  <footer>הצליל מעובד בדפדפן בלבד. אין הקלטה או העלאה לרשת. ההתקדמות נשמרת במכשיר זה. גרסה 4.3.</footer>
+  <footer>הצליל מעובד בדפדפן בלבד. אין הקלטה או העלאה לרשת. ההתקדמות נשמרת במכשיר זה. גרסה 4.4.</footer>
 </main>
-<div id="visits"><img id="visitsImg" alt="" onerror="this.parentNode.style.display='none'"></div>
-<script>(function(){var b="https://visitor-badge.laobi.icu/badge?page_id=miromiro1515.piano-trainer-web&left_text=%D7%91%D7%99%D7%A7%D7%95%D7%A8%D7%99%D7%9D",i=document.getElementById("visitsImg"),seen=false;try{seen=localStorage.getItem("piano.counted")==="1"}catch(e){}
-if(!seen)i.onload=function(){try{localStorage.setItem("piano.counted","1")}catch(e){}};i.src=b+(seen?"&query_only=true":"");})();</script>
+<div id="visits"><img src="https://visitor-badge.laobi.icu/badge?page_id=miromiro1515.piano-trainer-web&left_text=%D7%91%D7%99%D7%A7%D7%95%D7%A8%D7%99%D7%9D" alt="" onerror="this.parentNode.style.display='none'"></div>
 <script>
 "use strict";
 // ---- training model (ported from the native app) ----
@@ -372,8 +373,8 @@ function chooseNote(release=true){
   updateFinger();hintBtn.textContent="רמז: שם התו";
   stable=0;releaseFrames=0;transitioning=false;waitingForRelease=release;
   updateScore();draw();
-  if(active) status.textContent=release?"שחררו את הקליד, ואז נגנו את התו המסומן":"נגנו את התו המסומן";
-  else status.textContent="אפשר לשמוע ולראות הדגמה, ואז להפעיל מיקרופון לתרגול";
+  if(listening()) status.textContent=release?"שחררו את הקליד, ואז נגנו את התו המסומן":"נגנו את התו המסומן";
+  else status.textContent="אפשר לשמוע ולראות הדגמה, ואז להפעיל מיקרופון או לחבר פסנתר (MIDI)";
 }
 
 function optionsChanged(){
@@ -383,7 +384,7 @@ function optionsChanged(){
 }
 function toggleMode(){
   seqMode=!seqMode; noteBag=[];recentIdx=[]; singleCursor=-1; save(); refreshModeLabels(); chooseNote(active);
-  if(!active) status.textContent=seqMode?"מצב רצף: נגנו את התווים אחד אחרי השני":"מצב תו בודד. הפעילו מיקרופון כדי לתרגל";
+  if(!listening()) status.textContent=seqMode?"מצב רצף: נגנו את התווים אחד אחרי השני":"מצב תו בודד. הפעילו מיקרופון או חברו פסנתר (MIDI)";
 }
 // Rolling sequence: after each correct note, the note played ROLL_KEEP steps
 // ago (still shown, colored green/pink) is replaced by a new one that goes last
@@ -415,6 +416,28 @@ function advanceSequence(){
   stable=0; releaseFrames=0; transitioning=false; waitingForRelease=true;
   status.textContent="שחררו את הקליד, ואז נגנו את התו הבא ברצף";
   draw();
+}
+// A correct note was confirmed (by mic stability or a MIDI note-on).
+function confirmCorrect(){
+  transitioning=true; correctFlash=true; lastNote=target; otherNote=null; otherCount=0; recordResult(target,missedNow);
+  const wasMissed=missedNow; seqMissed[seqIndex]=wasMissed; if(seqMode)playedSlots[seqIndex]=true; draw();
+  if(seqMode&&rolling){ rollForward(); }
+  else if(seqMode){
+    if(seqIndex<sequence.length-1){
+      status.textContent="נכון! ✓ ממשיכים לתו הבא ברצף";
+      correctFlash=false; advanceSequence();
+    } else {
+      correct++; seqDone++; save(); updateScore();
+      status.textContent="כל הכבוד! רצף שלם ✓";
+      if(seqMissed.some(Boolean)){seqFinished=true;correctFlash=false;draw();pendingAdvance=setTimeout(()=>chooseNote(true),900);}
+      else{correctFlash=false; chooseNote(true);}
+    }
+  } else {
+    correct++; save(); updateScore();
+    status.textContent="נכון! ✓";
+    if(wasMissed){pendingAdvance=setTimeout(()=>chooseNote(true),700);}
+    else{correctFlash=false; chooseNote(true);}
+  }
 }
 function handlePitch(hz){
   if(performance.now()<mutedUntil){stable=0;return;}
@@ -448,27 +471,7 @@ function handlePitch(hz){
   if(played===target)wrongFrames=0;
   if(played===target && Math.abs(exact-target)<0.38){
     stable++;
-    if(stable>=3){
-      transitioning=true; correctFlash=true; lastNote=target; otherNote=null; otherCount=0; recordResult(target,missedNow);
-      const wasMissed=missedNow; seqMissed[seqIndex]=wasMissed; if(seqMode)playedSlots[seqIndex]=true; draw();
-      if(seqMode&&rolling){ rollForward(); }
-      else if(seqMode){
-        if(seqIndex<sequence.length-1){
-          status.textContent="נכון! ✓ ממשיכים לתו הבא ברצף";
-        correctFlash=false; advanceSequence();
-        } else {
-          correct++; seqDone++; save(); updateScore();
-          status.textContent="כל הכבוד! רצף שלם ✓";
-          if(seqMissed.some(Boolean)){seqFinished=true;correctFlash=false;draw();pendingAdvance=setTimeout(()=>chooseNote(true),900);}
-          else{correctFlash=false; chooseNote(true);}
-        }
-      } else {
-        correct++; save(); updateScore();
-        status.textContent="נכון! ✓";
-        if(wasMissed){pendingAdvance=setTimeout(()=>chooseNote(true),700);}
-        else{correctFlash=false; chooseNote(true);}
-      }
-    }
+    if(stable>=3) confirmCorrect();
   } else {
     stable=0; if(++wrongFrames>=2){missedNow=true;wrongFeedback();wrongFrames=-6;}
     if(((played-target)%12===0)&&played!==target){status.textContent=played>target?"זה התו הנכון, אבל באוקטבה גבוהה מדי. נגנו באוקטבה של דו האמצעי":"זה התו הנכון, אבל באוקטבה נמוכה מדי. נגנו באוקטבה של דו האמצעי";return;}
@@ -516,6 +519,83 @@ async function holdWakeLock(){
 holdWakeLock();
 document.addEventListener("pointerdown",holdWakeLock);
 document.addEventListener("keydown",holdWakeLock);
+
+// ---- USB MIDI (Web MIDI API: Chrome/Edge on Android with a USB/OTG cable) ----
+// Connect a digital piano/keyboard by USB and play: each key press is judged
+// instantly (no mic needed) and shown live on the staff in purple.
+let midiAccess=null, midiInputs=0;
+const midiBtn=$("midi"), midiHeld=new Set();
+function midiLive(){ return !!midiAccess&&midiInputs>0; }
+function listening(){ return active||midiLive(); }
+function updateMidiBtn(){
+  midiBtn.classList.toggle("on",midiLive());
+  midiBtn.textContent=!midiAccess?"חיבור פסנתר (MIDI)":midiInputs?`פסנתר מחובר (${midiInputs}) · ניתוק`:"מחובר, ממתין לפסנתר…";
+}
+function hookMidiInputs(){
+  midiInputs=0;
+  if(!midiAccess)return;
+  for(const inp of midiAccess.inputs.values()){ midiInputs++; inp.onmidimessage=onMidiMessage; }
+}
+async function toggleMidi(){
+  if(demonstrating)return;
+  if(midiAccess){
+    midiAccess.onstatechange=null;
+    for(const inp of midiAccess.inputs.values()) inp.onmidimessage=null;
+    midiAccess=null; midiInputs=0; midiHeld.clear(); updateMidiBtn(); draw();
+    status.textContent="הפסנתר מנותק"; return;
+  }
+  if(!navigator.requestMIDIAccess){
+    status.textContent="הדפדפן לא תומך ב-MIDI. בכרום באנדרואיד זה עובד עם כבל USB (OTG)"; return;
+  }
+  try{ midiAccess=await navigator.requestMIDIAccess({sysex:false}); }
+  catch(e){ status.textContent="לא התקבלה הרשאת MIDI. אשרו ונסו שוב"; return; }
+  midiAccess.onstatechange=()=>{ hookMidiInputs(); updateMidiBtn(); if(midiLive())status.textContent="הפסנתר מחובר! נגנו את התו המסומן"; };
+  hookMidiInputs(); updateMidiBtn();
+  status.textContent=midiInputs?"הפסנתר מחובר! נגנו את התו המסומן":"מחפש פסנתר… חברו את הפסנתר בכבל USB והדליקו אותו";
+}
+function onMidiMessage(e){
+  const d=e.data, cmd=d[0]&0xf0, note=d[1], vel=d[2]||0;
+  if(cmd===0x90&&vel>0) midiNoteOn(note);
+  else if(cmd===0x80||(cmd===0x90&&vel===0)) midiNoteOff(note);
+}
+function midiCalibrate(note){
+  calibSamples.push(note); if(calibSamples.length>3)calibSamples.shift();
+  if(calibSamples.length<3)return;
+  if(Math.max(...calibSamples)-Math.min(...calibSamples)>0){calibSamples=[];status.textContent="נשמעו תווים שונים. נגנו רק את דו האמצעי";return;}
+  calib=note-60; localStorage.setItem("pt_calib",String(calib));
+  calibrating=false; calibSamples=[];
+  $("calib").textContent="כיוון אוקטבה אמצעית"; refreshCalibLabel();
+  status.textContent=calib===0?"כוון! דו אמצעי זוהה בדיוק":`כוון! נשמר היסט של ${calib} חצאי טונים`;
+  waitingForRelease=true;
+}
+function midiNoteOn(note){
+  if(demonstrating)return;
+  const played=note-Math.round(calib);
+  if(calibrating){ midiCalibrate(note); return; }
+  midiHeld.add(played); draw();
+  heard.textContent=`נשמע: ${noteName(played)} · ${latinName(played)} (MIDI)`;
+  if(transitioning)return;
+  // A key press is always a fresh onset, so it clears any release wait —
+  // repeating the same key twice in a row works.
+  waitingForRelease=false; releaseFrames=0; stable=0;
+  lastNote=played;
+  if(played===target){ wrongFrames=0; confirmCorrect(); }
+  else{
+    wrongFrames++; missedNow=true; wrongFeedback();
+    if((played-target)%12===0) status.textContent=played>target?"זה התו הנכון, אבל באוקטבה גבוהה מדי. נגנו באוקטבה של דו האמצעי":"זה התו הנכון, אבל באוקטבה נמוכה מדי. נגנו באוקטבה של דו האמצעי";
+    else status.textContent=seqMode?`עוד ניסיון. נגנו את התו ${noteName(target)}`:"עוד ניסיון. נגנו את התו שעל החמשה";
+  }
+}
+function midiNoteOff(note){
+  if(demonstrating)return;
+  midiHeld.delete(note-Math.round(calib)); draw();
+  if(midiHeld.size===0&&waitingForRelease&&!transitioning){
+    waitingForRelease=false;
+    status.textContent=seqMode?`נגנו את התו ${noteName(target)}`:"נגנו את התו שעל החמשה";
+  }
+}
+midiBtn.addEventListener("click",toggleMidi);
+document.addEventListener("visibilitychange",()=>{ if(!document.hidden&&midiAccess){hookMidiInputs();updateMidiBtn();} });
 
 // ---- microphone ----
 let audioCtx=null, analyser=null, micStream=null, timer=null, buf=null;
@@ -570,8 +650,8 @@ modeBtn.addEventListener("click",toggleMode);
 $("calib").addEventListener("click",async()=>{
  if(calibrating){calibrating=false;$("calib").textContent="כיוון אוקטבה אמצעית";status.textContent="הכיוון בוטל";return;}
  if(demonstrating)return;
- if(!active)await startListening();
- if(!active)return;
+ if(!active&&!midiLive())await startListening();
+ if(!active&&!midiLive())return;
  calibrating=true;calibSamples=[];$("calib").textContent="ביטול כיוון";
  status.textContent="נגנו עכשיו את דו האמצעי והחזיקו קצת";
 });
@@ -679,6 +759,18 @@ function draw(){
         :"rgb(150,160,175)";
       drawNote(sequence[i],i===seqIndex?x+shakeOff():x,col,fingersOn()?sequenceFingers[i]:null);
     }
+  }
+  // Live MIDI feedback: the key(s) held right now, drawn in purple next to the target.
+  if(midiHeld.size&&!demonstrating){
+    let hx;
+    if(sequence.length===0) hx=w*.59+gap*1.7;
+    else{
+      const sx=left+2.6*gap, ex=right-gap*.7;
+      hx=sx+seqIndex*(sequence.length>1?(ex-sx)/(sequence.length-1):0)+gap*1.1;
+    }
+    hx=Math.min(hx,w-gap*1.6);
+    let k=0;
+    for(const m of [...midiHeld].sort((a,b)=>a-b)){ if(m===target&&midiHeld.size===1)continue; drawNote(m,hx+k*gap*1.5,"rgb(150,100,210)",null); k++; }
   }
 }
 window.addEventListener("resize",draw);
